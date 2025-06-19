@@ -1,11 +1,12 @@
 from fastapi import FastAPI, HTTPException, BackgroundTasks
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
 import tempfile
 import subprocess
 import os
 import json
+import asyncio
 from uuid import uuid4
 from datetime import datetime
 from pathlib import Path
@@ -26,6 +27,7 @@ except Exception:  # pragma: no cover - optional dependency
     SentenceTransformer = None
 import yaml
 from threading import Lock
+import re
 
 
 app = FastAPI(title="Generador de informes IA")
@@ -348,9 +350,41 @@ class GenerarRequest(BaseModel):
     extras: str | None = None
 
 
+class GenerarInformeRequest(BaseModel):
+    tema: str
+    paginas: int | None = None
+    estilo: str | None = None
+    idioma: str | None = None
+    longitud: str | None = None
+
+
 class ExportarRequest(BaseModel):
     contenido: str
     formato: str
+
+
+@app.post("/generar_informe")
+async def generar_informe(req: GenerarInformeRequest):
+    """Genera un informe por secciones simulando escritura en tiempo real."""
+    texto_base = (
+        f"Informe en {req.idioma or 'español'} sobre {req.tema}.\n"
+        f"Estilo: {req.estilo or 'estándar'}.\n"
+    )
+
+    secciones = [
+        "Introducción...\n",
+        "Desarrollo del tema...\n",
+        "Conclusiones.\n",
+    ]
+
+    async def gen():
+        yield texto_base
+        for sec in secciones:
+            for ch in sec:
+                yield ch
+                await asyncio.sleep(0.02)
+
+    return StreamingResponse(gen(), media_type="text/plain")
 
 @app.post("/generar")
 async def generar(req: GenerarRequest):
@@ -463,16 +497,57 @@ class BuscarRequest(BaseModel):
     k: int = 5
 
 
+def _should_start(text: str) -> bool:
+    t = text.lower()
+    if "informe" in t and any(w in t for w in ["generar", "crear", "iniciar", "comenzar"]):
+        return True
+    return False
+
+
+def _infer_context(text: str) -> dict:
+    ctx: dict[str, object] = {}
+    m = re.search(r"(\d+)\s*p[áa]g", text, re.I)
+    if m:
+        ctx["paginas"] = int(m.group(1))
+    if re.search(r"ingl[ée]s", text, re.I):
+        ctx["idioma"] = "en"
+    elif re.search(r"franc[ée]s", text, re.I):
+        ctx["idioma"] = "fr"
+    else:
+        ctx["idioma"] = "es"
+    if re.search(r"t[eé]cnic", text, re.I):
+        ctx["estilo"] = "técnico"
+    elif re.search(r"acad[eé]mic", text, re.I):
+        ctx["estilo"] = "académico"
+    elif re.search(r"ejecutiv", text, re.I):
+        ctx["estilo"] = "ejecutivo"
+    m = re.search(r"sobre ([^.\n]+)", text, re.I)
+    if m:
+        ctx["tema"] = m.group(1).strip()
+    if re.search(r"breve|corto", text, re.I):
+        ctx["longitud"] = "breve"
+    elif re.search(r"largo|extenso", text, re.I):
+        ctx["longitud"] = "largo"
+    return ctx
+
+
 @app.post("/conversar")
 async def conversar(req: ConversacionRequest):
-    """Maneja mensajes de chat simples o generación de informe."""
+    """Maneja mensajes de chat y decide si se inicia la generación."""
+    if req.mensaje.startswith("UPDATE:"):
+        return {"reply": "actualizado"}
+
     if req.modo == "generar":
         try:
             texto = generar_contenido(req.mensaje, "Informe")
         except Exception:
             texto = f"Generando informe: {req.mensaje}"
         return {"reply": texto}
-    return {"reply": "Respuesta generada por el bot"}
+
+    start = _should_start(req.mensaje)
+    ctx = _infer_context(req.mensaje) if start else None
+    reply = "Entendido" if start else "Mensaje recibido"
+    return {"reply": reply, "iniciar_generacion": start, "contexto": ctx}
 
 
 @app.post("/buscar")
