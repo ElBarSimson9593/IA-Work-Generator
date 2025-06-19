@@ -8,3 +8,4 @@ frontend/node_modules/
 # Build artifacts
 *.pyc
 frontend/dist/
+chroma_db/
