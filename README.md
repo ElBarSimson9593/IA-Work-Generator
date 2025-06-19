@@ -1,93 +1,77 @@
 # IA Work Generator – Generador de Informes con IA Local
 
-**IA Work Generator** es una aplicación de escritorio de carácter totalmente local, concebida para automatizar la redacción de informes extensos tanto en entornos académicos como empresariales. Su arquitectura pone el foco en la eficiencia operativa y la soberanía de los datos, empleando exclusivamente modelos de lenguaje offline y eliminando por completo la dependencia de servicios en la nube. Gracias a su diseño optimizado, es capaz de ejecutarse en hardware modesto, adaptándose de forma dinámica a la disponibilidad de GPU para maximizar la velocidad de inferencia y mejorar la experiencia de usuario sin comprometer la calidad textual.
+**IA Work Generator** es una aplicación de escritorio de carácter local, concebida para automatizar la redacción de informes extensos tanto en entornos académicos como empresariales. Su arquitectura está orientada a la eficiencia operativa y la soberanía de los datos, empleando exclusivamente modelos de lenguaje offline, lo que elimina la dependencia de servicios en la nube. Su diseño está optimizado para ejecutarse en hardware modesto, adaptándose dinámicamente a la disponibilidad de GPU para maximizar la velocidad de inferencia sin comprometer la calidad textual.
 
-## Capacidades estratégicas
+## Capacidades Estratégicas
 
-El sistema se inicia mediante una interfaz guiada que permite al usuario definir la longitud y el nivel de profundidad del informe. Un asistente conversacional estructurado recoge parámetros clave como el propósito del documento, tono deseado, público objetivo y nivel de formalidad, todo ello mediante un diálogo controlado. Tras la validación del contexto, el sistema procede a una generación progresiva por secciones, acompañada de una simulación visual tipo "escritura en tiempo real", diseñada para reforzar la percepción de control, trazabilidad y transparencia. El usuario puede intervenir en cualquier etapa a través de un editor interactivo enriquecido antes de proceder a la exportación final, soportada por Pandoc, en formatos profesionales como DOCX o PDF.
+El sistema se inicia con una interfaz guiada que permite definir la extensión y profundidad del informe. Un asistente conversacional recoge parámetros clave como el propósito del documento, tono, público objetivo y nivel de formalidad mediante un diálogo controlado. Una vez validado el contexto, la generación se realiza por secciones, simulando visualmente una "escritura en tiempo real" que refuerza la sensación de trazabilidad y control. El usuario puede intervenir en cualquier etapa mediante un editor interactivo enriquecido antes de exportar en formatos profesionales como DOCX o PDF, soportado por Pandoc.
 
-La persistencia del conocimiento generado se garantiza mediante un historial estructurado, con capacidades de búsqueda semántica optimizadas a través de ChromaDB. El diseño modular de la plataforma facilita su evolución hacia funcionalidades ampliadas como la exportación a presentaciones (.pptx), hojas de cálculo (.xlsx) y cuadros de mando ejecutivos.
+El conocimiento generado se almacena en un historial estructurado, con búsqueda semántica optimizada a través de ChromaDB. La arquitectura modular permite escalar el sistema a nuevas funcionalidades como exportación a presentaciones (.pptx), hojas de cálculo (.xlsx) o cuadros de mando ejecutivos.
 
-## Tecnologías empleadas
+## Sistema de Secciones Inteligente
 
-La interfaz combina Tauri, React, TailwindCSS y ShadCN UI para ofrecer una experiencia ligera, coherente y visualmente moderna. El backend está construido sobre FastAPI y se apoya en LangChain para la orquestación de flujos con modelos de lenguaje. Ollama se encarga de la ejecución eficiente de modelos LLM locales, mientras que ChromaDB sustenta la indexación semántica.
+IA Work Generator incorpora un sistema de identificación jerárquica de contenido que permite segmentar y etiquetar cada componente del informe: títulos, subtítulos y párrafos. Cada sección generada queda registrada con un identificador estructural que vincula su contenido subordinado (por ejemplo, el texto bajo "Introducción") de forma explícita. Esta arquitectura semántica permite al usuario realizar consultas o acciones dirigidas con precisión quirúrgica, tales como "modifica el texto de la introducción", "elimina la conclusión" o "cuántos caracteres tiene el desarrollo".
 
-## Inteligencia adaptativa
+El motor de generación, respaldado por un parser jerárquico, analiza la estructura del documento y permite al asistente interactuar con la jerarquía del texto en tiempo real. Esto habilita funcionalidades avanzadas como recuento de secciones, evaluación de longitud por área temática, reemplazo contextual selectivo y visualización estructurada para su edición individual o masiva.
 
-En entornos sin GPU, el sistema emplea modelos cuantizados como Mistral o Mixtral, optimizando la generación en bloques para reducir la carga sobre recursos limitados. Cuando se detecta una GPU compatible (CUDA en Linux/Windows o Metal en macOS), se activa automáticamente la aceleración por hardware, mejorando sustancialmente los tiempos de inferencia sin afectar la coherencia narrativa.
+## Tecnologías Empleadas
 
-## Arquitectura modular
+El frontend utiliza Tauri, React, TailwindCSS y ShadCN UI, proporcionando una interfaz ligera y moderna. El backend se basa en FastAPI, con orquestación de modelos mediante LangChain. Ollama gestiona la ejecución eficiente de los modelos LLM locales y ChromaDB ofrece las capacidades de indexación semántica.
 
-El proyecto se estructura en componentes bien definidos que facilitan su mantenimiento, extensión y depuración:
+## Inteligencia Adaptativa
 
-* **frontend/**: Interfaz de usuario construida con tecnologías web modernas.
-* **backend/**: Lógica central expuesta como API REST.
-* **resources/**: Plantillas editables para la personalización del contenido generado.
-* **config/**: Archivos de configuración del sistema.
-* **historial.json**: Repositorio local de informes con metadatos.
-* **agents.md**: Documentación interna de los agentes lógicos y sus flujos.
+En ausencia de GPU, el sistema recurre a modelos cuantizados como Mistral o Mixtral, gestionando la generación por bloques para minimizar el uso de recursos. Si detecta una GPU (CUDA o Metal), activa la aceleración por hardware, mejorando notablemente los tiempos de inferencia sin comprometer la coherencia narrativa.
 
-## Flujo de navegación
+## Arquitectura Modular
 
-La experiencia del usuario se estructura en cuatro etapas secuenciales, cada una sujeta a validaciones para garantizar coherencia y evitar omisiones:
+El proyecto se organiza en componentes independientes que facilitan su mantenimiento y extensión:
 
-1. **Asistente de contexto**: Recoge información clave y propone una estructura inicial, la cual debe ser validada por el usuario.
-2. **Redacción animada**: El contenido se genera de forma progresiva por secciones, en un entorno visual que simula la escritura en tiempo real.
-3. **Editor interactivo**: Permite revisar, editar o regenerar secciones antes de confirmar la versión final.
-4. **Exportación y registro**: Se selecciona el formato deseado y se guarda el informe con metadatos para futuras consultas.
+* **frontend/**: Interfaz de usuario.
+* **backend/**: Lógica central como API REST.
+* **resources/**: Plantillas editables.
+* **config/**: Configuraciones del sistema.
+* **historial.json**: Repositorio local con metadatos.
+* **agents.md**: Documentación interna de agentes lógicos.
 
-## Diseño de componentes
+## Flujo de Usuario
 
-Los elementos de interfaz se seleccionaron por su accesibilidad y coherencia visual. Se emplean componentes como Stepper, Tabs, Progress, Card y Select, optimizados para una navegación fluida desde la definición inicial hasta la exportación final. El historial permite visualizar, buscar y reutilizar informes anteriores de forma eficiente.
+1. **Asistente de contexto**: Recoge información clave y propone estructura.
+2. **Generación animada**: Redacción progresiva por secciones.
+3. **Editor interactivo**: Revisión y ajustes.
+4. **Exportación y registro**: Guardado con metadatos.
 
-## Esquemas funcionales
+## Esquemas Funcionales
 
-### Flujo de usuario
+### Flujo de Usuario
 
-\[Inicio de aplicación] ↓ \[Asistente de contexto: definición y validación] ↓ \[Generación animada por secciones] ↓ \[Editor interactivo: ajustes y confirmación] ↓ \[Exportación a DOCX/PDF] ↓ \[Registro en historial con metadatos y búsqueda semántica]
+Inicio de aplicación ↓ Asistente de contexto ↓ Generación por secciones ↓ Editor interactivo ↓ Exportación ↓ Registro en historial
 
-### Arquitectura técnica
+### Arquitectura Técnica
 
-+----------------------+     REST API     +----------------------+    Exportación     +----------------------+
-\|  Frontend (Tauri)    | <--------------> |   Backend (FastAPI)   |  ------------->  |  Pandoc / Sistema FS |
-\| - React UI           |                  | - LangChain + Ollama |                  | - DOCX / PDF         |
-\| - Navegación guiada  |                  | - ChromaDB / NLP      |                  |                      |
-+----------------------+                  +----------------------+                  +----------------------+
+Frontend (Tauri/React) ↔ Backend (FastAPI/LangChain/Ollama) → Pandoc/Sistema de Archivos
 
-### Módulos lógicos
+### Módulos Lógicos
 
-\[Agente de Contexto] → \[Generador de Texto] → \[Editor Interactivo] → \[Exportador de Documento]
-↑                             ↓                           ↓
-\[Motor Semántico (Chroma)] ← \[Historial Persistente]     \[Plantillas y Configuración]
+Agente de Contexto → Generador de Texto → Editor Interactivo → Exportador de Documento
+↑                                         ↓                            ↓
+Motor Semántico (Chroma) ← Historial Persistente   Plantillas y Configuración
 
-## Instrucciones de despliegue
+## Instrucciones de Despliegue
 
 ### Backend
-
-Iniciar Ollama con el modelo adecuado:
 
 ```bash
 ollama run mixtral
 ollama serve &
+ollama pull mixtral  # en caso de error
+ollama pull mistral  # para equipos con pocos recursos
 ```
 
-En caso de error por endpoint:
-
-```bash
-ollama pull mixtral
-```
-
-Para equipos con recursos limitados:
-
-```bash
-ollama pull mistral
-```
-
-Modificar `config/config.yaml` para usar `model: mistral` si aplica. Luego:
+Modificar `config/config.yaml` si se usa Mistral. Luego:
 
 ```bash
 python -m venv venv
-source venv/bin/activate  # En Windows: venv\Scripts\activate
+source venv/bin/activate  # o venv\Scripts\activate en Windows
 pip install -r backend/requirements.txt
 pip install -U langchain-community sentence-transformers
 ```
@@ -99,7 +83,7 @@ sudo apt-get install pandoc  # Linux
 brew install pandoc          # macOS
 ```
 
-Ejecutar el backend:
+Ejecutar backend:
 
 ```bash
 python backend/main.py
@@ -107,40 +91,31 @@ python backend/main.py
 
 ### Frontend
 
-En la carpeta raíz del frontend:
-
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
 
-La aplicación se abrirá en modo desarrollo con el asistente activo.
+## Pruebas y Distribución
 
-## Pruebas y distribución
-
-Ejecución de pruebas automatizadas:
+Ejecución de pruebas:
 
 ```bash
 pytest
 ```
 
-Compilación del backend:
+Compilación y empaquetado:
 
 ```bash
 sh backend/build.sh
-```
-
-Empaquetado de la aplicación final:
-
-```bash
 npm run tauri build
 ```
 
-## Perspectiva de evolución
+## Perspectiva de Evolución
 
-Se contempla una evolución funcional hacia la personalización integral de plantillas, exportación directa a .pptx y .xlsx, integración con Power BI para dashboards, soporte multilingüe y adaptación a verticales sectoriales como ingeniería, medicina o derecho. Asimismo, se proyecta un backend totalmente autónomo y empaquetable, sin dependencias externas.
+Se prevé la personalización completa de plantillas, exportación a .pptx y .xlsx, integración con Power BI, soporte multilingüe y adaptación a sectores como ingeniería, medicina o derecho. Asimismo, se contempla un backend totalmente autónomo sin dependencias externas.
 
 ## Licencia
 
-MIT – Uso, modificación y distribución libres, con obligatoria atribución al autor original.
+MIT – Uso libre con atribución al autor original.
