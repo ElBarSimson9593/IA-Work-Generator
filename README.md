@@ -1,248 +1,169 @@
 # IA Work Generator – Generador de Informes con IA Local
 
-**IA Work Generator** es una aplicación de escritorio profesional, completamente local, diseñada para generar informes académicos o corporativos extensos, con modelos de lenguaje ejecutados offline. Opera con bajo consumo de recursos, siendo ideal incluso para PCs de gama baja, y puede escalar su rendimiento al detectar una GPU disponible. El sistema permite generar documentos bien estructurados de hasta 30 páginas, con enfoque personalizado y edición previa a la exportación.
+**IA Work Generator** es una aplicación de escritorio, completamente local, diseñada para automatizar la redacción de informes extensos en contextos académicos y empresariales. Su arquitectura prioriza la eficiencia operativa y la soberanía de los datos mediante el uso exclusivo de modelos de lenguaje offline, prescindiendo completamente de servicios en la nube. Gracias a su diseño optimizado, es capaz de ejecutarse en hardware modesto, adaptando dinámicamente su comportamiento si detecta una GPU disponible, con el fin de maximizar la velocidad de inferencia y la experiencia de usuario.
 
-## Características principales
+## Capacidades estratégicas
 
-* Generación de informes de hasta 30 páginas mediante IA local (sin conexión a internet).
-* El usuario selecciona el número de páginas deseado desde la interfaz.
-* Asistente conversacional previo que recopila contexto e intención del informe.
-* IA curiosa que hace preguntas profundas: estilo, objetivo, extensión, público, etc.
-* Redacción visible en tiempo real con animación de escritura progresiva.
-* Edición directa del contenido generado desde un panel interactivo antes de exportar.
-* Exportación profesional a DOCX y PDF usando Pandoc.
-* Historial persistente y búsqueda semántica con ChromaDB.
-* Estructura modular preparada para exportación futura a .pptx, .xlsx, Power BI.
-* Interfaz moderna basada en Tauri + React + TailwindCSS + ShadCN UI.
+El sistema inicia con una interfaz guiada que permite al usuario seleccionar la longitud y nivel de profundidad del informe deseado. Un asistente conversacional estructurado recopila los parámetros clave —propósito del documento, tono, público objetivo y nivel de detalle— mediante un diálogo controlado. Tras la validación del contexto, se inicia una generación progresiva por secciones, con simulación visual de escritura. Este enfoque busca reforzar la percepción de control y transparencia. El usuario puede intervenir mediante un editor interactivo antes de proceder a la exportación final, soportada por Pandoc, en formatos profesionales como DOCX o PDF.
 
----
+La persistencia del conocimiento generado se garantiza a través de un historial estructurado, con búsqueda semántica optimizada mediante ChromaDB. La plataforma está diseñada para escalar hacia funcionalidades futuras como exportación a presentaciones (.pptx), hojas de cálculo (.xlsx) y cuadros de mando ejecutivos.
 
-## Optimización para distintos entornos
+## Tecnologías empleadas
 
-IA Work Generator está diseñado para adaptarse automáticamente a las capacidades del equipo:
+La interfaz combina Tauri, React, TailwindCSS y ShadCN UI, con el objetivo de ofrecer una experiencia ligera, nativa y coherente. El backend, por su parte, está construido sobre FastAPI e integra LangChain para la orquestación de flujos LLM, mientras que Ollama se encarga de la ejecución eficiente de los modelos.
 
-**En PCs de gama baja (≥ 4 GB de RAM, sin GPU):**
+## Inteligencia adaptativa
 
-* Uso de modelos cuantizados (como `mistral`, `mixtral`) mediante Ollama.
-* Generación secuencial y por secciones, evitando picos de carga.
-* Opción de "modo ahorro": proceso más lento, pero con bajo consumo de CPU y RAM.
+En ausencia de GPU (con al menos 4 GB de RAM), se emplean modelos cuantizados como `mistral` o `mixtral`, permitiendo una generación dividida en secciones para reducir el impacto en recursos. En presencia de GPU compatibles con CUDA o Metal, el sistema activa automáticamente la aceleración por hardware, reduciendo drásticamente los tiempos de respuesta sin comprometer la calidad del texto generado.
 
-**En equipos con GPU disponible:**
+## Arquitectura modular
 
-* El sistema puede aprovechar la aceleración por hardware (si Ollama está configurado con soporte CUDA/Metal).
-* Esto permite una generación significativamente más rápida, útil para documentos largos o múltiples informes en serie.
+El proyecto se estructura en componentes claramente diferenciados para facilitar el mantenimiento y la extensión:
 
----
+* `frontend/`: Interfaz de usuario con tecnologías web modernas.
+* `backend/`: Núcleo funcional expuesto mediante API REST.
+* `resources/`: Plantillas editables para personalización de salida.
+* `config/`: Configuraciones generales para comportamiento del sistema.
+* `historial.json`: Repositorio local de informes generados.
+* `agents.md`: Documentación de los agentes lógicos y flujos.
 
-## Estructura del proyecto
+## Flujo de navegación
 
-* `frontend/` – Aplicación de escritorio: Tauri + React + TailwindCSS + ShadCN UI.
-* `backend/` – API en Python: FastAPI + LangChain + Ollama.
-* `resources/` – Plantillas para exportación (`template.docx`, `template.css`).
-* `config/` – Parámetros globales (`config.yaml`) para modelo, carpeta y estilo.
-* `historial.json` – Almacén de informes generados.
-* `agents.md` – Documentación técnica de los agentes inteligentes.
+La experiencia del usuario se articula en cuatro fases secuenciales, cada una protegida por una lógica de validación que impide avanzar hasta completar la tarea actual. Esto refuerza la coherencia y evita errores por omisión.
 
----
+1. El **asistente de contexto** inicia el diálogo con el usuario y propone una estructura preliminar que debe ser aprobada explícitamente.
+2. Una vez validado el enfoque, comienza la **redacción animada**, donde el contenido se construye en tiempo real por secciones.
+3. Finalizada la generación, el usuario accede al **editor interactivo**, con funciones de revisión, regeneración parcial y edición enriquecida.
+4. Finalmente, se accede al módulo de **exportación**, donde se selecciona el formato de salida y se registra el informe en el historial.
 
-## Interfaz y navegación
+## Diseño de componentes
 
-La aplicación está dividida en cuatro vistas principales, conectadas secuencialmente:
+Los elementos de la interfaz han sido seleccionados por su accesibilidad y coherencia visual. Se emplean `Stepper`, `Tabs`, `Progress`, `Card`, `Select`, entre otros, asegurando una experiencia fluida desde la definición hasta la exportación del informe. Los elementos del historial permiten inspeccionar, buscar y reutilizar informes anteriores con rapidez.
 
-1. **Asistente de contexto** – Vista de chat (componente conversacional con flujo tipo wizard). Botón: "Confirmar parámetros".
-2. **Redacción del informe** – Vista de generación animada en tiempo real, por secciones. Botón: "Ir al editor".
-3. **Editor del informe** – Panel de edición del contenido markdown generado. Botones: "Guardar", "Regenerar", "Ir a exportar".
-4. **Exportación** – Selector de formato y botón "Exportar informe".
+## Esquemas funcionales
 
-El usuario solo puede avanzar de una etapa a otra tras completar la actual. Los botones de avance están deshabilitados hasta cumplir condiciones mínimas (ej. contexto válido o generación terminada).
-
-## Componentes UI clave
-
-| Función              | Componente sugerido (ShadCN)       |
-| -------------------- | ---------------------------------- |
-| Entrada de chat      | `Textarea`, `Button`               |
-| Flujo conversacional | `Stepper`, `Form`, validación UX   |
-| Vista de generación  | `Progress`, `Card`, `Badge`        |
-| Editor de texto      | `Textarea`, `Tabs`, `Toolbar`      |
-| Exportar informe     | `Select`, `Button`, `AlertDialog`  |
-| Historial            | `Table`, `SearchInput`, `Dropdown` |
-
----
-
-## Diagramas funcionales
-
-### Diagrama de flujo de interacción
+### Flujo de usuario
 
 ```text
-[Inicio de la aplicación]
+[Inicio de aplicación]
         ↓
-[Chat con IA curiosa]
-  (recopila tema, objetivo, estilo, número de páginas)
+[Asistente de contexto: definición y validación]
         ↓
-[Confirmación de parámetros por el usuario]
+[Generación animada por secciones]
         ↓
-[Generación progresiva del informe]
-  (secciones: introducción, desarrollo, conclusión)
+[Editor interactivo: ajustes y confirmación]
         ↓
-[Vista en tiempo real + Edición manual]
+[Exportación a DOCX/PDF]
         ↓
-[Exportación a DOCX o PDF]
-        ↓
-[Almacenamiento en historial + Búsqueda semántica opcional]
+[Registro en historial con metadatos y búsqueda semántica]
 ```
 
-### Diagrama de componentes del sistema
+### Arquitectura técnica
 
 ```text
-+----------------------+     REST API     +----------------------+    File Export   +----------------------+
-|  Frontend (Tauri)    | <--------------> |   Backend (FastAPI)   |  ------------->  |  Pandoc / FileSystem |
++----------------------+     REST API     +----------------------+    Exportación     +----------------------+
+|  Frontend (Tauri)    | <--------------> |   Backend (FastAPI)   |  ------------->  |  Pandoc / Sistema FS |
 | - React UI           |                  | - LangChain + Ollama |                  | - DOCX / PDF         |
-| - Chat & Editor      |                  | - ChromaDB, NLP       |                  |                      |
+| - Navegación guiada  |                  | - ChromaDB / NLP      |                  |                      |
 +----------------------+                  +----------------------+                  +----------------------+
 ```
 
-### Diagrama de agentes
+### Módulos lógicos
 
 ```text
-[Asistente Curioso] ---> [Generador de Contenido] ---> [Editor Interactivo] ---> [Exportador de Documentos]
+[Agente de Contexto] ---> [Generador de Texto] ---> [Editor Interactivo] ---> [Exportador de Documento]
                                 ↑                             ↓                           ↓
-                        [Buscador Semántico]  <----------  [Historial]               [Plantillas / Config]
+                      [Motor Semántico (Chroma)] <---- [Historial Persistente]     [Plantillas y Config]
 ```
 
-Estos diagramas resumen cómo fluyen los datos y cómo se estructuran los módulos internos y agentes.
-
----
-
-## Ejecución
+## Instrucciones de despliegue
 
 ### Backend
 
-1. Iniciar Ollama y el modelo (por primera vez):
+Se recomienda iniciar Ollama con el modelo adecuado:
 
 ```bash
 ollama run mixtral
 ollama serve &
 ```
 
-> Si aparece `OllamaEndpointNotFoundError`, ejecuta:
+En caso de error por endpoint:
 
 ```bash
 ollama pull mixtral
 ```
 
-> Para un entorno más ligero:
+Para equipos limitados:
 
 ```bash
 ollama pull mistral
 ```
 
-Y modifica `config/config.yaml` con `model: mistral`.
-
-2. Crear entorno virtual:
+Configurar `config/config.yaml` con `model: mistral` según corresponda. Luego:
 
 ```bash
 python -m venv venv
 source venv/bin/activate  # En Windows: venv\Scripts\activate
-```
-
-3. Instalar dependencias:
-
-```bash
 pip install -r backend/requirements.txt
 pip install -U langchain-community sentence-transformers
 ```
 
-4. Instalar Pandoc (si no está en el sistema):
+Instalar Pandoc:
 
 ```bash
-# Debian/Ubuntu
-sudo apt-get install pandoc
-
-# macOS
-brew install pandoc
+sudo apt-get install pandoc  # Linux
+brew install pandoc          # macOS
 ```
 
-5. Ejecutar el servidor:
+Ejecutar el backend:
 
 ```bash
 python backend/main.py
 ```
 
-El backend se expone en: `http://127.0.0.1:8000`.
+### Frontend
 
-CORS habilitado para: `http://127.0.0.1:1420` y `http://localhost:1420`.
-
----
-
-### Frontend (Tauri)
-
-1. Instalar dependencias:
+En la raíz del frontend:
 
 ```bash
 cd frontend
 npm install
-```
-
-2. Ejecutar la aplicación:
-
-```bash
 npm run dev
 ```
 
-Se abrirá una ventana con el chat del bot y el generador de informes.
+La aplicación se abrirá en modo desarrollo con el asistente activo.
 
----
+## Pruebas y distribución
 
-## Flujo de uso
-
-1. Inicia conversación con la IA, que hará preguntas clave sobre el informe.
-2. Selecciona el número de páginas deseado (hasta 30).
-3. Visualiza la redacción animada en tiempo real por secciones.
-4. Edita el texto generado en el panel antes de exportarlo.
-5. Exporta el contenido como DOCX o PDF.
-6. Consulta el historial o realiza búsquedas semánticas para reutilizar trabajos anteriores.
-
----
-
-## Pruebas
-
-Puedes ejecutar pruebas automatizadas con:
+Ejecución de pruebas automatizadas:
 
 ```bash
 pytest
 ```
 
----
-
-## Empaquetado
-
-Para compilar el backend como ejecutable:
+Compilación del backend:
 
 ```bash
 sh backend/build.sh
 ```
 
-> Integra PyInstaller y empaqueta con todas las dependencias necesarias.
-
-Para empaquetar el frontend con Tauri:
+Empaquetado de la aplicación final:
 
 ```bash
 npm run tauri build
 ```
 
----
+## Perspectiva de evolución
 
-## Roadmap
+Se contempla una evolución funcional hacia:
 
-* Plantillas exportables configurables por usuario
-* Generación de presentaciones PowerPoint (.pptx)
-* Exportación estructurada a Excel (.xlsx)
-* Dashboards ejecutivos en Power BI / CSV
-* Soporte multilenguaje y ajustes de estilo por disciplina
-* Compresión del backend y runtime unificado sin dependencias externas
-
----
+* Personalización completa de plantillas.
+* Exportación directa a .pptx y .xlsx.
+* Dashboards integrados con Power BI.
+* Soporte para múltiples idiomas.
+* Adaptación a verticales específicos (ingeniería, medicina, derecho, etc.).
+* Backend autónomo y empaquetable sin dependencias externas.
 
 ## Licencia
 
-MIT – Libre uso, modificación y distribución con atribución.
+MIT – Libre uso, modificación y distribución, requiriendo atribución correspondiente.
