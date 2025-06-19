@@ -119,6 +119,8 @@ def sync_chroma() -> None:
 
 def generar_contenido(tema: str, tipo: str) -> str:
     """Genera un informe usando LangChain + Ollama."""
+    if llm is None:
+        raise HTTPException(status_code=500, detail="Modelo Ollama no disponible")
     prompt = (
         f"Redacta un informe profesional tipo \"{tipo}\" sobre el tema: \"{tema}\". "
         "Incluye introducci\u00f3n, desarrollo argumental y conclusiones."
