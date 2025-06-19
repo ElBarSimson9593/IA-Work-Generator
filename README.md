@@ -112,6 +112,19 @@ sh backend/build.sh
 npm run tauri build
 ```
 
+### Nuevos Endpoints
+
+El backend expone dos rutas adicionales para la interfaz principal:
+
+- `POST /conversar` – analiza el mensaje del usuario y responde indicando si se
+  debe iniciar la generación (`iniciar_generacion: true`). Opcionalmente devuelve
+  un contexto deducido con tema, estilo, idioma o número de páginas.
+- `POST /generar_informe` – recibe dicho contexto y envía el contenido del
+  informe sección por sección mediante una `StreamingResponse`.
+
+La aplicación React detecta el flag de generación y abre de forma automática un
+panel lateral con animación de escritura en tiempo real.
+
 ## Perspectiva de Evolución
 
 Se prevé la personalización completa de plantillas, exportación a .pptx y .xlsx, integración con Power BI, soporte multilingüe y adaptación a sectores como ingeniería, medicina o derecho. Asimismo, se contempla un backend totalmente autónomo sin dependencias externas.

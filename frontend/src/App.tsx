@@ -1,9 +1,9 @@
-import ChatInterface from "./components/ChatInterface";
+import MainInterface from "./components/MainInterface";
 
 export default function App() {
   return (
-    <div className="h-screen p-4">
-      <ChatInterface />
+    <div className="h-screen">
+      <MainInterface />
     </div>
   );
 }
