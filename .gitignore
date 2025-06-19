@@ -9,3 +9,4 @@ frontend/node_modules/
 *.pyc
 frontend/dist/
 chroma_db/
+tests/tmp_hist.json
