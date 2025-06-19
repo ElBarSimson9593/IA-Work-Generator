@@ -131,7 +131,7 @@ def generar_contenido(tema: str, tipo: str) -> str:
     if llm is None:
         raise HTTPException(status_code=500, detail="Modelo Ollama no disponible")
     prompt = (
-        f"Redacta un informe profesional tipo \"{tipo}\" sobre el tema: \"{tema}\". "
+        f"Redacta un informe profesional en espa\u00f1ol tipo \"{tipo}\" sobre el tema: \"{tema}\". "
         "Incluye introducci\u00f3n, desarrollo argumental y conclusiones."
     )
     try:
