@@ -1,35 +1,43 @@
-# Arquitectura de Agentes Lógicos
+# Guía Operativa de Agentes
 
-La columna vertebral de IA Work Generator se articula en torno a un conjunto de agentes cooperativos que, a pesar de su independencia funcional, convergen hacia un objetivo común: maximizar la eficiencia en la producción de texto mientras se preserva la soberanía de los datos. Cada agente se erige como una entidad autónoma con responsabilidad claramente delimitada, aunque su diseño contempla canales de retroalimentación que garantizan la coherencia sistémica y la trazabilidad de decisiones.
+Este documento, alojado en la raíz del repositorio como `AGENTS.md`, tiene el cometido de describir los procedimientos concretos para crear, modificar y mantener los agentes lógicos que sustentan IA Work Generator. Al diferenciarse de la documentación arquitectónica —trasladada a `docs/architecture/architecture.md`—, su enfoque es eminentemente instrumental y va dirigido al desarrollador que necesite intervenir en el código fuente con rapidez y criterio consistente.
 
-## Agente de Contexto
+## Alcance y filosofía de diseño
 
-Desde la apertura de la sesión, este agente asume la labor de interrogar al usuario para destilar la esencia del encargo. No se limita a registrar los parámetros visibles —como la extensión, el tono o la audiencia— sino que cuestiona de forma reiterativa la pertinencia de cada instrucción, invitando al usuario a depurar ambigüedades antes de la generación. Su lógica interna pondera las respuestas aplicando heurísticas de confiabilidad; cuando detecta inconsistencias, suspende la fase de escritura y solicita clarificación, reforzando así la precisión del encuadre temático.
+Los agentes representan unidades autocontenidas de responsabilidad única. Cada uno expone una interfaz explícita que define entradas, salidas y efectos colaterales aceptables. Esta segmentación obedece al principio de responsabilidad única y facilita que la inteligencia colectiva del sistema evolucione de forma incremental sin comprometer la estabilidad global. La regla rectora es conservar la transparencia operacional, de modo que cualquier acción ejecutada por un agente debe quedar registrada en logs estructurados para su posterior auditoría.
 
-## Agente Generador de Texto
+## Ubicación del código
 
-Una vez fijados los límites conceptuales por el agente de contexto, el generador de texto entra en escena como la fuerza creativa del sistema. Su motor ejecuta inferencia sobre modelos LLM locales, escindiendo el trabajo en sub‑tareas que corresponden a la jerarquía estructural del documento. Cada fragmento producido se somete a un ciclo interno de autoverificación que compara la salida con la matriz de requisitos inicial, con el objetivo de identificar digresiones argumentales. Si el nivel de disonancia supera el umbral configurado, se activa un mecanismo de auto‑regulación que re‑formula la sección afectada antes de exponerla al usuario.
+Todo agente reside, de manera individual, bajo el espacio `backend/agents/`. El nombre de la carpeta y del módulo Python debe reflejar su responsabilidad, por ejemplo `context_agent/` o `export_agent/`. Dentro de cada módulo, el archivo `config.py` define los parámetros ajustables, mientras que `core.py` contiene la implementación de la lógica principal. Las pruebas unitarias se ubican en `tests/agents/`, siguiendo la misma convención de nombres; por ejemplo, las pruebas de `context_agent` se alojan en `tests/agents/test_context_agent.py`.
 
-## Agente de Edición Interactiva
+## Flujo de trabajo recomendado
 
-Tras la generación preliminar, la edición recae en un agente orientado a facilitar la intervención humana. En tiempo real indexa cada párrafo y lo vincula con su metadato originario, alimentando la capa de interfaz con herramientas de revisión semántica, métrica y estilística. Su algoritmo de sugerencias se fundamenta en un modelo de calidad textual entrenado con corpora empresariales; ello le permite detectar modismos inadecuados, repeticiones o desviaciones de tono con un elevado nivel de sensibilidad. Pese a su inclinación correctiva, delega la decisión final al usuario, alineándose con el principio de control conservador.
+Cuando se crea un agente nuevo, el procedimiento arranca con la formulación de su contrato público. Dicho contrato se codifica como una clase derivada de `BaseAgent`, que impone la firma estándar `run(payload: dict) -> dict`. Una vez definida, se confecciona un stub mínimo que únicamente lanza una excepción de “NotImplemented”. Posteriormente, se redactan las pruebas unitarias que ejerciten los casos nominales y los bordes funcionales. Con ese andamiaje se procede a implementar la lógica real, respetando las directrices de estilo PEP 8 y las prácticas de programación defensiva.
 
-## Agente de Exportación y Registro
+## Integración con el bus de eventos
 
-Cuando se aprueba la versión definitiva, el agente de exportación orquesta la conversión a los formatos solicitados, empleando a Pandoc como motor de transformación. Previo a la compilación definitiva, ejecuta un proceso de auditoría de dependencias externas para prevenir fallos de versión. Finalizada la exportación, este mismo agente registra el documento junto con sus metadatos en el historial semántico, consignando la huella de tiempo, la configuración del modelo y el contexto operativo. Dicho registro se replica de forma asincrónica en un backup local cifrado, reafirmando la resiliencia de la solución.
+La comunicación entre agentes se realiza mediante un bus asíncrono basado en `asyncio.Queue`. Para suscribirse a un tipo de evento concreto, el agente implementa la rutina `subscribe(self, event_type: str)`. La emisión de eventos se lleva a cabo a través de la llamada `publish(event: Event)` que acepta un objeto serializable. Cuando se añade un agente nuevo, es imperativo documentar en su docstring qué eventos consume y cuáles produce, con el fin de mantener la trazabilidad y evitar acoplamientos ocultos.
 
-## Agente Motor Semántico
+## Registro y observabilidad
 
-Este agente opera en segundo plano y funge de nexo entre los módulos anteriores. Su misión radica en gestionar ChromaDB para ofrecer búsqueda vectorial y análisis de proximidad semántica. Cada contenido nuevo genera embeddings que se insertan en el índice; de igual manera, toda consulta de usuario se traduce en vectores cuya colisión se resuelve mediante cálculos de similitud coseno. Su diseño admite la estratificación de dominios temáticos, lo cual permite conservar rendimientos óptimos incluso cuando la base de conocimiento escala en tamaño y heterogeneidad.
+Cada agente debe inicializar un logger propio mediante la utilidad `get_structured_logger(name)`, que formatea las entradas en JSON y captura contexto adicional como la huella temporal, el identificador de sesión y el nivel de severidad. No se permite la impresión directa por consola fuera del logger. Los mensajes de nivel inferior a `DEBUG` se reservan para diagnósticos y no deben persistir en entornos de producción salvo indicación contraria.
 
-## Orquestación Transparente
+## Ciclo de pruebas
 
-El entramado de agentes se comunica mediante un bus de eventos basado en mensajería asíncrona. Este patrón evita bloqueos al distribuir la carga de trabajo y dota al sistema de una elasticidad prudente: basta con inyectar nuevas instancias de un agente para absorber picos de demanda sin alterar el esqueleto arquitectónico. Cada intercambio se documenta en un log estructurado que facilita la auditoría posterior y alimenta modelos de monitorización predictiva, cimentando la visión de un ciclo de mejora continua.
+El pipeline de integración continua ejecuta `pytest` con la bandera `--strict-markers` y `--cov=backend/agents/`. Cualquier agente incorporado que reduzca la cobertura global por debajo del umbral configurado —actualmente setenta y cinco por ciento— detendrá el despliegue. Las pruebas deben aislarse de recursos externos y, cuando ello resulte imposible, simular la dependencia mediante fixtures.
 
-## Parámetros de Configuración
+## Despliegue y versionado
 
-Todos los agentes referidos exponen variables en `config/config.yaml`, desde umbrales de coherencia y límites de tokens hasta rutas de exportación preferentes. La modificación de estos parámetros sigue un procedimiento transaccional: el sistema valida su coherencia interna antes de propagar los cambios, evitando así estados inconsistentes. De esta manera, la configuración se convierte en un contrato vivo entre el usuario avanzado y la lógica interna, donde cada ajuste se concilia con un análisis conservador de riesgos potenciales.
+La introducción de un agente nuevo implica un incremento menor en la versión semántica del paquete backend, por ejemplo de `2.3.1` a `2.4.0`. Si el cambio afecta contratos públicos o esquemas de eventos, el salto es mayor y se documenta en `CHANGELOG.md`. El despliegue se orquesta mediante el script `scripts/release_backend.sh` que etiqueta el commit, actualiza los artefactos y dispara la compilación en Tauri.
+
+## Eliminación de agentes
+
+La retirada de un agente requiere una proposición de mejora (PR) que justifique su obsolescencia y describa la migración de sus responsabilidades. Se acepta únicamente cuando existe cobertura de pruebas que demuestre la equivalencia funcional tras la remoción. El PR debe referenciar la actualización de configuración y la limpieza del historial semántico pertinente.
+
+## Consulta rápida de parámetros
+
+Los ajustes configurables de cada agente se documentan en `config/config.yaml` bajo la clave con su nombre. Para modificarlos, se edita el YAML con cuidado de no romper la validación de esquema; cualquier inconsistencia detendrá la carga del backend. El comando `python backend/tools/validate_config.py` permite verificar la integridad antes de confirmar el commit.
 
 ## Conclusión
 
-El ecosistema de agentes delineado aquí no es estático; se encuentra en constante escrutinio y perfeccionamiento, impulsado por una cultura de innovación que cuestiona todo supuesto y somete cada mejora a la prueba del rendimiento medible. La aspiración última es cristalizar un balance entre la autonomía operacional de la inteligencia artificial y la autoridad decisoria del usuario, garantizando así un flujo de trabajo potente, transparente y alineado con las costumbres profesionales más rigurosas.
+Este archivo establece un marco operativo uniforme y reproducible para la gestión del ciclo de vida de los agentes. Siguiendo estas pautas, el equipo de desarrollo preservará la robustez y extensibilidad del sistema, alineándose con la misión estratégica de proveer una solución local, eficiente y confiable.
