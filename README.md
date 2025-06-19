@@ -4,7 +4,6 @@ Proyecto de ejemplo para generar informes de forma local utilizando un stack lib
 
 ## Estructura
 
-- `frontend/` – Aplicación de escritorio creada con Tauri + React + TailwindCSS.
 - `frontend/` – Aplicación de escritorio creada con Tauri + React + TailwindCSS + ShadCN UI.
 - `backend/` – API local en Python usando FastAPI con LangChain y Ollama.
 - `resources/` – Archivos estáticos y recursos (pendiente de uso).
@@ -84,15 +83,8 @@ Tauri abrirá una ventana con el formulario para generar informes.
    puede usar `GET /historial/{id}?exportar=docx` o `pdf`.
 7. Para buscar de forma semántica se usa `POST /buscar` con `{ "query": "texto", "k": 5 }` y se obtienen los informes más similares.
 
-- Este proyecto está preparado para ampliarse con:
-
-- Búsqueda semántica con ChromaDB.
-4. El texto se muestra en la interfaz.
-5. Para exportar el informe se hace una petición `POST` a `/exportar` enviando el
-   contenido y el formato deseado (`docx` o `pdf`).
-
 Este proyecto está preparado para ampliarse con:
 
-- Almacenamiento de vectores en ChromaDB.
+- Almacenamiento y búsqueda semántica con ChromaDB.
 - Exportación a DOCX o PDF mediante Pandoc.
 - Empaquetado de la aplicación con PyInstaller.
