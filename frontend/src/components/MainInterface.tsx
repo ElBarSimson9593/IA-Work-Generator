@@ -18,6 +18,7 @@ export default function MainInterface() {
   const [input, setInput] = useState("");
   const [showGen, setShowGen] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [escribiendo, setEscribiendo] = useState(false);
   const [display, setDisplay] = useState("");
   const [editable, setEditable] = useState("");
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -32,19 +33,28 @@ export default function MainInterface() {
     const text = input;
     setMessages((p) => [...p, { role: "user", text }]);
     setInput("");
-    const resp = await fetch("http://127.0.0.1:8000/conversar", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mensaje: text }),
-    });
-    if (resp.ok) {
+    setEscribiendo(true);
+    try {
+      const resp = await fetch("http://127.0.0.1:8000/conversar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mensaje: text }),
+      });
+      if (!resp.ok) throw new Error("Request failed");
       const data = await resp.json();
-      setMessages((p) => [...p, { role: "bot", text: data.reply }]);
+      setMessages((p) => [...p, { role: "bot", text: data.respuesta }]);
       if (data.iniciar_generacion) {
         setShowGen(true);
         setGenerating(true);
         iniciarGeneracion(data.contexto || { tema: text } as GenContext);
       }
+    } catch (err) {
+      setMessages((p) => [
+        ...p,
+        { role: "bot", text: "Error al obtener respuesta." },
+      ]);
+    } finally {
+      setEscribiendo(false);
     }
   }
 
@@ -102,13 +112,18 @@ export default function MainInterface() {
               {m.text}
             </div>
           ))}
+          {escribiendo && (
+            <div className="text-xs text-gray-500 animate-pulse">
+              El bot está escribiendo...
+            </div>
+          )}
           <div ref={endRef} />
         </div>
         <div className="p-2 border-t flex gap-2">
           <input
             className="flex-1 border rounded p-1"
             value={input}
-            disabled={generating}
+            disabled={generating || escribiendo}
             onChange={(e) => setInput(e.currentTarget.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
@@ -120,7 +135,7 @@ export default function MainInterface() {
           <button
             className="bg-blue-600 text-white px-4 rounded disabled:opacity-50"
             onClick={send}
-            disabled={generating}
+            disabled={generating || escribiendo}
           >
             Enviar
           </button>
