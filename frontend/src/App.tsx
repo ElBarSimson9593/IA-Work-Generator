@@ -13,17 +13,17 @@ interface HistItem {
   timestamp: string;
 }
 
-
 export default function App() {
   const [tema, setTema] = useState("");
   const [tipo, setTipo] = useState("");
   const [resultado, setResultado] = useState("");
-
   const [vistaPrevia, setVistaPrevia] = useState(false);
   const [formato, setFormato] = useState("docx");
   const [historial, setHistorial] = useState<HistItem[]>([]);
   const [busqueda, setBusqueda] = useState("");
   const [activeTab, setActiveTab] = useState<"generar" | "historial">("generar");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     cargarHistorial();
@@ -36,32 +36,37 @@ export default function App() {
       setHistorial(data);
     }
   }
+
   async function generar() {
+    setLoading(true);
+    setError("");
     const resp = await fetch("http://127.0.0.1:8000/generar", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ tema, tipo }),
     });
     if (!resp.ok) {
-      setResultado("Error al generar informe");
+      setError("Error al generar informe");
+      setLoading(false);
       return;
     }
     const data = (await resp.json()) as GenerarResponse;
     setResultado(data.contenido);
-
     setVistaPrevia(false);
+    setLoading(false);
     cargarHistorial();
-
-
   }
 
   async function exportar() {
+    setLoading(true);
     const resp = await fetch("http://127.0.0.1:8000/exportar", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ contenido: resultado, formato }),
     });
+    setLoading(false);
     if (!resp.ok) {
+      setError("Error al exportar");
       return;
     }
     const blob = await resp.blob();
@@ -146,6 +151,9 @@ export default function App() {
         </button>
       </div>
 
+      {error && <div className="text-red-600 mb-2">{error}</div>}
+      {loading && <div className="mb-2">Cargando...</div>}
+
       {activeTab === "generar" && (
         <>
           <form
@@ -210,9 +218,6 @@ export default function App() {
         </>
       )}
 
-    </main>
-  );
-}
       {activeTab === "historial" && (
         <div className="w-full max-w-md">
           <form className="mb-2 flex" onSubmit={buscarHistorial}>
@@ -228,46 +233,23 @@ export default function App() {
           </form>
           <ul>
             {historial.map((item) => (
-            <li
-              key={item.id}
-              className="border-b p-2 flex justify-between items-start"
-            >
-              <div
-                className="flex-1 cursor-pointer"
-                onClick={() => cargarInforme(item.id)}
-              >
-                <div className="font-semibold">{item.tema}</div>
-                <div className="text-sm text-gray-500">
-                  {item.tipo} - {new Date(item.timestamp).toLocaleString()}
+              <li key={item.id} className="border-b p-2 flex justify-between items-start">
+                <div className="flex-1 cursor-pointer" onClick={() => cargarInforme(item.id)}>
+                  <div className="font-semibold">{item.tema}</div>
+                  <div className="text-sm text-gray-500">
+                    {item.tipo} - {new Date(item.timestamp).toLocaleString()}
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  className="text-blue-600 text-sm"
-                  onClick={() => exportarHistorial(item.id, "docx")}
-                >
-                  DOCX
-                </button>
-                <button
-                  className="text-blue-600 text-sm"
-                  onClick={() => exportarHistorial(item.id, "pdf")}
-                >
-                  PDF
-                </button>
-                <button
-                  className="text-red-600 text-sm"
-                  onClick={() => eliminarInforme(item.id)}
-                >
-                  Eliminar
-                </button>
-              </div>
-            </li>
-          ))}
+                <div className="flex items-center gap-2">
+                  <button className="text-blue-600 text-sm" onClick={() => exportarHistorial(item.id, "docx")}>DOCX</button>
+                  <button className="text-blue-600 text-sm" onClick={() => exportarHistorial(item.id, "pdf")}>PDF</button>
+                  <button className="text-red-600 text-sm" onClick={() => eliminarInforme(item.id)}>Eliminar</button>
+                </div>
+              </li>
+            ))}
           </ul>
         </div>
       )}
-
-
     </main>
   );
 }

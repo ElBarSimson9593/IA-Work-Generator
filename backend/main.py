@@ -12,6 +12,7 @@ from pydantic import BaseModel
 from langchain.llms import Ollama
 import chromadb
 from sentence_transformers import SentenceTransformer
+import yaml
 
 app = FastAPI(title="Generador de informes IA")
 
@@ -21,6 +22,17 @@ llm = Ollama(model="mixtral")
 
 HIST_PATH = Path(__file__).with_name("historial.json")
 CHROMA_PATH = Path(__file__).with_name("chroma_db")
+
+# Cargar configuración global
+CONFIG_PATH = Path(__file__).resolve().parents[1] / "config" / "config.yaml"
+if CONFIG_PATH.exists():
+    with CONFIG_PATH.open("r", encoding="utf-8") as fh:
+        CONFIG = yaml.safe_load(fh) or {}
+else:
+    CONFIG = {}
+
+EXPORT_DIR = Path(CONFIG.get("export_dir", "exports"))
+EXPORT_DIR.mkdir(parents=True, exist_ok=True)
 
 # Inicializar modelo de embedding y base vectorial persistente
 embedder = SentenceTransformer("all-MiniLM-L6-v2")
@@ -90,16 +102,23 @@ def exportar_a_archivo(contenido: str, formato: str) -> str:
         md_path = tmp_md.name
 
     ext = ".docx" if formato == "docx" else ".pdf"
-    out_path = md_path.replace(".md", ext)
+    out_name = f"{Path(md_path).stem}{ext}"
+    out_path = EXPORT_DIR / out_name
+
+    pandoc_cmd = ["pandoc", md_path, "-o", str(out_path)]
+    if formato == "docx" and CONFIG.get("docx_template"):
+        pandoc_cmd.extend(["--reference-doc", CONFIG["docx_template"]])
+    if formato == "pdf" and CONFIG.get("pdf_css"):
+        pandoc_cmd.extend(["-c", CONFIG["pdf_css"]])
 
     try:
-        subprocess.run(["pandoc", md_path, "-o", out_path], check=True)
+        subprocess.run(pandoc_cmd, check=True)
     except subprocess.CalledProcessError as exc:
         os.remove(md_path)
         raise HTTPException(status_code=500, detail="Error al exportar") from exc
 
     os.remove(md_path)
-    return out_path
+    return str(out_path)
 
 class GenerarRequest(BaseModel):
     tema: str
@@ -236,6 +255,7 @@ async def buscar(req: BuscarRequest):
                     "tema": meta.get("tema", base["tema"]),
                     "tipo": meta.get("tipo", base["tipo"]),
                     "timestamp": meta.get("timestamp", base["timestamp"]),
+                    "snippet": base.get("contenido", "")[:200],
                 }
             )
     return items

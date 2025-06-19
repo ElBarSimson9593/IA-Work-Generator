@@ -6,8 +6,8 @@ Proyecto de ejemplo para generar informes de forma local utilizando un stack lib
 
 - `frontend/` – Aplicación de escritorio creada con Tauri + React + TailwindCSS + ShadCN UI.
 - `backend/` – API local en Python usando FastAPI con LangChain y Ollama.
-- `resources/` – Archivos estáticos y recursos (pendiente de uso).
-- `config/` – Archivos de configuración de la aplicación.
+- `resources/` – Plantillas para exportación (`template.docx`, `template.css`).
+- `config/` – Parámetros globales en `config.yaml`.
 
 ## Ejecución
 
@@ -52,6 +52,9 @@ python backend/main.py
 
 La API quedará disponible en `http://127.0.0.1:8000`.
 
+La configuración global se encuentra en `config/config.yaml` y permite definir
+la carpeta de exportación y plantillas.
+
 ### Frontend (Tauri)
 
 1. Instalar dependencias de Node:
@@ -68,6 +71,23 @@ npm run dev
 ```
 
 Tauri abrirá una ventana con el formulario para generar informes.
+
+### Pruebas
+
+Ejecuta las pruebas unitarias con:
+
+```bash
+pytest
+```
+
+### Empaquetado
+
+Para generar un ejecutable del backend se proporciona `backend/build.sh` que usa
+PyInstaller:
+
+```bash
+sh backend/build.sh
+```
 
 ## Flujo básico
 

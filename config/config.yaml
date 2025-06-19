@@ -1,0 +1,5 @@
+export_dir: exports
+default_author: "Anonimo"
+language: "es"
+docx_template: "../resources/template.docx"
+pdf_css: "../resources/template.css"
