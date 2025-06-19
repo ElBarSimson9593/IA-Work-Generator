@@ -1,5 +1,5 @@
 import { useState } from "react";
-import Chat, { Contexto } from "./components/Chat";
+import ChatBot, { Contexto } from "./components/ChatBot";
 import Generate from "./components/Generate";
 import EditPanel from "./components/EditPanel";
 import ExportView from "./components/ExportView";
@@ -17,8 +17,8 @@ export default function App() {
 
       {view === "chat" && (
         <>
-          <Chat
-            onCompleted={(ctx) => {
+          <ChatBot
+            onContextConfirmed={(ctx) => {
               setContexto(ctx);
               setView("generate");
             }}
