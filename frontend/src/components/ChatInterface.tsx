@@ -14,6 +14,7 @@ export default function ChatInterface() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [autoGenerate, setAutoGenerate] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
 
   // Desplaza la vista al último mensaje cada vez que cambia el historial
@@ -32,7 +33,7 @@ export default function ChatInterface() {
       const resp = await fetch("http://127.0.0.1:8000/conversar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mensaje: text }),
+        body: JSON.stringify({ mensaje: text, modo: autoGenerate ? "generar" : undefined }),
       });
       if (!resp.ok) throw new Error("request failed");
       const data = await resp.json();
@@ -85,27 +86,37 @@ export default function ChatInterface() {
         )}
         <div ref={endRef} />
       </div>
-      <div className="border-t p-2 flex gap-2">
-        <input
-          className="flex-1 border rounded px-2 py-1"
-          placeholder="Escribe un mensaje"
-          value={input}
-          disabled={loading}
-          onChange={(e) => setInput(e.currentTarget.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              sendMessage();
-            }
-          }}
-        />
-        <button
-          className="bg-blue-600 text-white rounded px-4 disabled:opacity-50"
-          onClick={sendMessage}
-          disabled={loading}
-        >
-          Enviar
-        </button>
+      <div className="border-t p-2 flex flex-col gap-2">
+        <label className="text-sm flex items-center gap-1">
+          <input
+            type="checkbox"
+            checked={autoGenerate}
+            onChange={(e) => setAutoGenerate(e.currentTarget.checked)}
+          />
+          Generar informe automáticamente
+        </label>
+        <div className="flex gap-2">
+          <input
+            className="flex-1 border rounded px-2 py-1"
+            placeholder="Escribe un mensaje"
+            value={input}
+            disabled={loading}
+            onChange={(e) => setInput(e.currentTarget.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                sendMessage();
+              }
+            }}
+          />
+          <button
+            className="bg-blue-600 text-white rounded px-4 disabled:opacity-50"
+            onClick={sendMessage}
+            disabled={loading}
+          >
+            Enviar
+          </button>
+        </div>
       </div>
     </div>
   );

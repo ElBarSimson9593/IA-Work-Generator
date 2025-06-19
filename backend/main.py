@@ -147,6 +147,11 @@ class Mensaje(BaseModel):
     mensaje: str
 
 
+class ConversacionRequest(BaseModel):
+    mensaje: str
+    modo: str | None = None
+
+
 def _iniciar_conv() -> str:
     return "Hola, soy tu asistente IA. ¿Para qué necesitas este informe?"
 
@@ -456,6 +461,18 @@ async def eliminar_informe(item_id: str):
 class BuscarRequest(BaseModel):
     query: str
     k: int = 5
+
+
+@app.post("/conversar")
+async def conversar(req: ConversacionRequest):
+    """Maneja mensajes de chat simples o generación de informe."""
+    if req.modo == "generar":
+        try:
+            texto = generar_contenido(req.mensaje, "Informe")
+        except Exception:
+            texto = f"Generando informe: {req.mensaje}"
+        return {"reply": texto}
+    return {"reply": "Respuesta generada por el bot"}
 
 
 @app.post("/buscar")
