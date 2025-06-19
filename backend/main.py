@@ -11,13 +11,7 @@ from pathlib import Path
 from pydantic import BaseModel
 from langchain.llms import Ollama
 import chromadb
-from chromadb.config import Settings
 from sentence_transformers import SentenceTransformer
-import tempfile
-import subprocess
-import os
-from pydantic import BaseModel
-from langchain.llms import Ollama
 
 app = FastAPI(title="Generador de informes IA")
 
@@ -135,7 +129,6 @@ async def generar(req: GenerarRequest):
     guardar_historial(historial)
     agregar_a_chroma(informe)
     return {"id": informe["id"], "contenido": contenido}
-    return {"contenido": contenido}
 
 
 @app.post("/exportar")
