@@ -1,61 +1,93 @@
-# Agentes Lógicos en IA Work Generator
+# Documentación de Agentes Lógicos
 
-Este documento detalla la arquitectura funcional de los agentes lógicos implementados en **IA Work Generator**, responsables de la orquestación cognitiva, control de flujo y generación de contenido. La aplicación adopta una estructura basada en agentes para separar responsabilidades, mejorar la trazabilidad de decisiones e incrementar la extensibilidad futura del sistema.
+Este documento describe la lógica interna y los componentes funcionales que orquestan el comportamiento inteligente de **IA Work Generator**. Cada agente actúa como una entidad modular con responsabilidades bien definidas, facilitando el razonamiento contextual, la generación coherente y la adaptabilidad de la aplicación a distintos casos de uso.
 
-## 1. Agente de Contexto (`AsistenteCurioso`)
+## 1. Agente de Contexto
 
-Este agente es el primer punto de contacto con el usuario. Su rol principal es guiar la definición del encargo textual mediante preguntas sucesivas que permiten construir un "prompt de alto nivel". Internamente se comporta como una máquina de estados, donde cada respuesta del usuario transiciona hacia un nuevo nodo de información requerido. Solo tras la confirmación final, este agente emite un evento `onContextConfirmed`, que habilita la generación textual.
+### Rol principal:
 
-Responsabilidades:
+Responsable de iniciar la interacción con el usuario y extraer los parámetros fundamentales para la generación del informe. Opera mediante un flujo conversacional guiado.
 
-* Obtener y refinar información sobre el objetivo del documento.
-* Inferir estilo, tono y profundidad mediante heurísticas y ejemplos.
-* Establecer metadatos iniciales para la sesion de generación.
+### Funciones clave:
 
-## 2. Agente Generador (`RedactorSecuencial`)
+* Identificación del propósito del informe.
+* Definición del tono (formal, técnico, divulgativo, etc.).
+* Segmentación del público objetivo.
+* Configuración del nivel de profundidad deseado.
+* Propuesta de una estructura preliminar del documento.
 
-Este agente es responsable de la generación secuencial del contenido, utilizando LangChain y modelos ejecutados a través de Ollama. Opera mediante "bloques lógicos" definidos en un grafo de dependencias, donde cada nodo representa una sección del documento (introducción, desarrollo, conclusión, etc.) y cada arista define prerequisitos conceptuales.
+### Implementación:
 
-Características clave:
+Basado en LangChain con prompts estructurados. Utiliza plantillas preconfiguradas según dominio (académico o corporativo) para ajustar el framing inicial.
 
-* Lógica modular para secciones.
-* Capacidad de reintento ante fallos de generación.
-* Adaptación de la generación en función del contexto semántico previamente almacenado.
+## 2. Agente Generador de Texto
 
-## 3. Agente de Edición (`EditorInteractivo`)
+### Rol principal:
 
-Este agente permite la manipulación del contenido generado antes de su exportación. No actúa como modelo de lenguaje, sino como orquestador de transformaciones estructurales. Expone funciones como:
+Encargado de la generación progresiva de contenido textual a partir del contexto validado. Secciona el contenido según la estructura acordada.
 
-* Regeneración selectiva de secciones.
-* Aplicación de filtros de estilo.
-* Validación sintáctica y gramatical básica mediante reglas predefinidas.
+### Funciones clave:
 
-## 4. Agente de Exportación (`FormateadorFinal`)
+* Redacción sección por sección (introducción, desarrollo, conclusión, etc.).
+* Simulación de escritura en tiempo real.
+* Mecanismos de retroalimentación ante ambigüedades.
+* Modularidad para regeneración selectiva.
 
-Este agente traduce el contenido Markdown enriquecido hacia formatos finales como DOCX o PDF, integrando metadatos y plantillas. Está integrado con Pandoc y aplica reglas de formateo específicas por tipo de documento.
+### Implementación:
 
-Funciones destacadas:
+Utiliza Ollama como backend de inferencia LLM y se orquesta mediante LangChain para mantener coherencia entre secciones. Aplica prompts contextuales enriquecidos con memoria temporal.
 
-* Inserción automática de portada.
-* Inclusión de índice si el documento supera cierto umbral de longitud.
-* Aplicación de hojas de estilo CSS para coherencia visual.
+## 3. Agente Editor
 
-## 5. Agente de Memoria (`HistorialPersistente`)
+### Rol principal:
 
-Este agente centraliza la gestión de los informes creados. Utiliza ChromaDB para indexar representaciones semánticas de los contenidos generados y metadatos asociados (fecha, autor, ámbito temático, etc.). Facilita la búsqueda por similitud conceptual y recuperación de sesiones anteriores.
+Proporciona un entorno de edición enriquecida donde el usuario puede ajustar, corregir o solicitar regeneraciones parciales del contenido generado.
 
-Capacidades:
+### Funciones clave:
 
-* Indexación incremental al exportar un informe.
-* Búsqueda basada en embeddings.
-* Recuperación estructurada del contenido previo.
+* Edición directa del contenido.
+* Reescritura bajo diferentes estilos o enfoques.
+* Regeneración contextual de secciones marcadas.
+* Validación semántica y sugerencias de mejora.
 
-## Orquestación general
+### Implementación:
 
-Los agentes se comunican mediante eventos y hooks definidos en el backend, con un bus de mensajes interno que garantiza la secuencialidad, consistencia y trazabilidad. La integración con LangChain permite flexibilidad futura para escalar cada agente con cadenas más complejas, agentes autónomos o integraciones con herramientas externas.
+Interfaz React con integración a un backend de microservicios que consulta a LangChain con prompts de revisión. Se apoya en historiales previos y plantillas adaptativas.
 
-## Perspectiva de extensión
+## 4. Agente de Exportación
 
-La arquitectura actual permite, sin reestructuraciones, la incorporación de agentes especializados para dominios como educación, medicina o legal, así como la adopción de herramientas de validación formal, control de plagio o análisis de impacto.
+### Rol principal:
 
-Este enfoque modular garantiza la sostenibilidad técnica del sistema y su capacidad de adaptarse a requerimientos futuros sin comprometer su desempeño ni su filosofía de privacidad local.
+Encargado de transformar el contenido final en formatos profesionales editables y de registrar su traza documental.
+
+### Funciones clave:
+
+* Conversión a DOCX y PDF mediante Pandoc.
+* Inserción de metadatos (título, autor, fecha, parámetros contextuales).
+* Registro automático en historial.
+* Preparación para exportaciones futuras (pptx, xlsx).
+
+### Implementación:
+
+Pipeline de renderizado basado en Pandoc con plantillas Markdown enriquecidas. Se apoya en los archivos de `resources/` para asegurar consistencia visual y estructural.
+
+## 5. Agente de Historial y Memoria
+
+### Rol principal:
+
+Gestiona la persistencia de contenidos generados, habilitando la búsqueda semántica, el versionado y la reutilización inteligente de informes.
+
+### Funciones clave:
+
+* Indexación semántica con ChromaDB.
+* Búsqueda por intención, título o contexto.
+* Agrupación de informes por temática o dominio.
+* Versionado y trazabilidad del contenido.
+
+### Implementación:
+
+Integración directa con ChromaDB usando embeddings generados por `sentence-transformers`. Se apoya en `historial.json` como capa de persistencia local.
+
+---
+
+Cada agente está diseñado para operar de forma desacoplada pero interoperable, lo que permite escalar funcionalmente el sistema sin introducir cuellos de botella lógicos. La arquitectura modular garantiza la posibilidad de sustituir, ampliar o especializar agentes sin comprometer la estabilidad del ecosistema general.
