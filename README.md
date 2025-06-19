@@ -1,38 +1,72 @@
-# IA Work Generator
+# IA Work Generator – Generador de Informes con IA Local
 
-Proyecto de ejemplo para generar informes de forma local utilizando un stack libre.
+**IA Work Generator** es una aplicación de escritorio profesional, completamente local, diseñada para generar informes académicos o corporativos extensos, con modelos de lenguaje ejecutados offline. Opera con bajo consumo de recursos, siendo ideal incluso para PCs de gama baja, y puede escalar su rendimiento al detectar una GPU disponible. El sistema permite generar documentos bien estructurados de hasta 30 páginas, con enfoque personalizado y edición previa a la exportación.
 
-## Estructura
+## Características principales
 
-- `frontend/` – Aplicación de escritorio creada con Tauri + React + TailwindCSS + ShadCN UI.
-- `backend/` – API local en Python usando FastAPI con LangChain y Ollama.
+- Generación de informes de hasta 30 páginas mediante IA local (sin conexión a internet).
+- El usuario selecciona el número de páginas deseado desde la interfaz.
+- Asistente conversacional previo que recopila contexto e intención del informe.
+- IA curiosa que hace preguntas profundas: estilo, objetivo, extensión, público, etc.
+- Redacción visible en tiempo real con animación de escritura progresiva.
+- Edición directa del contenido generado desde un panel interactivo antes de exportar.
+- Exportación profesional a DOCX y PDF usando Pandoc.
+- Historial persistente y búsqueda semántica con ChromaDB.
+- Estructura modular preparada para exportación futura a .pptx, .xlsx, Power BI.
+- Interfaz moderna basada en Tauri + React + TailwindCSS + ShadCN UI.
+
+---
+
+## Optimización para distintos entornos
+
+IA Work Generator está diseñado para adaptarse automáticamente a las capacidades del equipo:
+
+**En PCs de gama baja (≥ 4 GB de RAM, sin GPU):**
+- Uso de modelos cuantizados (como `mistral`, `mixtral`) mediante Ollama.
+- Generación secuencial y por secciones, evitando picos de carga.
+- Opción de "modo ahorro": proceso más lento, pero con bajo consumo de CPU y RAM.
+
+**En equipos con GPU disponible:**
+- El sistema puede aprovechar la aceleración por hardware (si Ollama está configurado con soporte CUDA/Metal).
+- Esto permite una generación significativamente más rápida, útil para documentos largos o múltiples informes en serie.
+
+---
+
+## Estructura del proyecto
+
+- `frontend/` – Aplicación de escritorio: Tauri + React + TailwindCSS + ShadCN UI.
+- `backend/` – API en Python: FastAPI + LangChain + Ollama.
 - `resources/` – Plantillas para exportación (`template.docx`, `template.css`).
-- `config/` – Parámetros globales en `config.yaml`.
+- `config/` – Parámetros globales (`config.yaml`) para modelo, carpeta y estilo.
+- `historial.json` – Almacén de informes generados.
+- `agents.md` – Documentación técnica de los agentes inteligentes.
+
+---
 
 ## Ejecución
 
 ### Backend
 
-1. Iniciar Ollama (solo la primera vez es necesario descargar el modelo):
+1. Iniciar Ollama y el modelo (por primera vez):
 
 ```bash
-ollama run mixtral  # descarga el modelo si es necesario
-ollama serve &      # deja el servicio escuchando en 11434
-```
-Si obtienes un error `OllamaEndpointNotFoundError` indicando que el modelo no
-existe, ejecuta:
+ollama run mixtral
+ollama serve &
+````
+
+> Si aparece `OllamaEndpointNotFoundError`, ejecuta:
 
 ```bash
 ollama pull mixtral
 ```
-para descargarlo manualmente.
 
-Para usar un modelo más pequeño puedes ejecutar:
+> Para un entorno más ligero:
 
 ```bash
 ollama pull mistral
 ```
-Y establecer `model: mistral` en `config/config.yaml`.
+
+Y modifica `config/config.yaml` con `model: mistral`.
 
 2. Crear entorno virtual:
 
@@ -41,21 +75,20 @@ python -m venv venv
 source venv/bin/activate  # En Windows: venv\Scripts\activate
 ```
 
-3. Instalar dependencias (se ha añadido `httpx` para realizar peticiones HTTP):
+3. Instalar dependencias:
 
 ```bash
 pip install -r backend/requirements.txt
 pip install -U langchain-community sentence-transformers
 ```
 
-4. Instalar Pandoc (si no est\u00e1 en el sistema). En Debian/Ubuntu puedes ejecutar:
+4. Instalar Pandoc (si no está en el sistema):
 
 ```bash
+# Debian/Ubuntu
 sudo apt-get install pandoc
-```
-En macOS con Homebrew:
 
-```bash
+# macOS
 brew install pandoc
 ```
 
@@ -65,62 +98,96 @@ brew install pandoc
 python backend/main.py
 ```
 
-La API quedará disponible en `http://127.0.0.1:8000`.
-El backend incluye CORS habilitado para las URLs `http://127.0.0.1:1420` y `http://localhost:1420` del frontend.
+El backend se expone en: `http://127.0.0.1:8000`.
 
-La configuración global se encuentra en `config/config.yaml` y permite definir
-la carpeta de exportación, plantillas y el modelo de Ollama a utilizar.
+CORS habilitado para: `http://127.0.0.1:1420` y `http://localhost:1420`.
+
+---
 
 ### Frontend (Tauri)
 
-1. Instalar dependencias de Node:
+1. Instalar dependencias:
 
 ```bash
 cd frontend
 npm install
 ```
 
-2. Ejecutar la aplicación en modo desarrollo:
+2. Ejecutar la aplicación:
 
 ```bash
 npm run dev
 ```
 
-Tauri abrirá una ventana con el formulario para generar informes.
+Se abrirá una ventana con el chat del bot y el generador de informes.
 
-### Pruebas
+---
 
-Ejecuta las pruebas unitarias con:
+## Flujo de uso
+
+1. Inicia conversación con la IA, que hará preguntas clave sobre el informe.
+2. Selecciona el número de páginas deseado (hasta 30).
+3. Visualiza la redacción animada en tiempo real por secciones.
+4. Edita el texto generado en el panel antes de exportarlo.
+5. Exporta el contenido como DOCX o PDF.
+6. Consulta el historial o realiza búsquedas semánticas para reutilizar trabajos anteriores.
+
+---
+
+## Pruebas
+
+Puedes ejecutar pruebas automatizadas con:
 
 ```bash
 pytest
 ```
 
-### Empaquetado
+---
 
-Para generar un ejecutable del backend se proporciona `backend/build.sh` que usa
-PyInstaller:
+## Empaquetado
+
+Para compilar el backend como ejecutable:
 
 ```bash
 sh backend/build.sh
 ```
 
-## Flujo básico
+> Integra PyInstaller y empaqueta con todas las dependencias necesarias.
 
-1. Introducir un tema y tipo de informe en el formulario.
-2. El frontend realiza una petición `POST` a `http://127.0.0.1:8000/generar`.
-3. El backend genera el informe usando LangChain + Ollama (modelo Mixtral).
-4. El texto se muestra en la interfaz y puede alternarse entre vista con formato (Markdown) o texto plano.
-5. Para exportar el informe se hace una petición `POST` a `/exportar` enviando el
-   contenido y el formato deseado (`docx` o `pdf`).
-6. Los informes se almacenan en `backend/historial.json`. Puede consultarse la
-   lista en `GET /historial`, obtener un informe con `GET /historial/{id}` y
-   eliminarlo con `DELETE /historial/{id}`. Para exportar un informe guardado se
-   puede usar `GET /historial/{id}?exportar=docx` o `pdf`.
-7. Para buscar de forma semántica se usa `POST /buscar` con `{ "query": "texto", "k": 5 }` y se obtienen los informes más similares.
+Para empaquetar el frontend con Tauri:
 
-Este proyecto está preparado para ampliarse con:
+```bash
+npm run tauri build
+```
 
-- Almacenamiento y búsqueda semántica con ChromaDB.
-- Exportación a DOCX o PDF mediante Pandoc.
-- Empaquetado de la aplicación con PyInstaller.
+---
+
+## Estado actual del desarrollo
+
+* ✅ Generación de informes y exportación DOCX/PDF
+* ✅ Asistente conversacional previo con IA curiosa
+* ✅ Panel de edición y animación de escritura
+* ✅ Historial y búsqueda semántica (ChromaDB)
+* ✅ Compatible con CPU y GPU
+* ⚠️ `resources/` y `config/` parcialmente integrados
+* ⚠️ Pruebas automatizadas básicas
+* ⚠️ Empaquetado final en revisión multiplataforma
+
+---
+
+## Roadmap
+
+* Plantillas exportables configurables por usuario
+* Generación de presentaciones PowerPoint (.pptx)
+* Exportación estructurada a Excel (.xlsx)
+* Dashboards ejecutivos en Power BI / CSV
+* Soporte multilenguaje y ajustes de estilo por disciplina
+* Compresión del backend y runtime unificado sin dependencias externas
+
+---
+
+## Licencia
+
+MIT – Libre uso, modificación y distribución con atribución.
+
+```
