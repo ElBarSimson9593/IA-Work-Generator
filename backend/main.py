@@ -151,6 +151,49 @@ def _iniciar_conv() -> str:
     return "Hola, soy tu asistente IA. ¿Para qué necesitas este informe?"
 
 
+_PREGUNTAS_PREDETERMINADAS = {
+    1: "¿Sobre qué tema específico trata el informe?",
+    2: "¿Qué estilo prefieres (técnico, académico, ejecutivo, etc.)?",
+    3: "¿Cuántas páginas deseas? (máximo 30)",
+    4: "¿Hay fuentes, restricciones o tono específico que debamos considerar?",
+}
+
+
+def generar_pregunta(paso: int, estado: EstadoConversacion) -> str:
+    """Genera la siguiente pregunta de forma dinámica usando el LLM."""
+    base = _PREGUNTAS_PREDETERMINADAS.get(paso, "")
+    if llm is None:
+        return base
+
+    prompt = (
+        "Eres un asistente que ayuda a planificar un informe. "
+        "Con la información recopilada hasta ahora, formula la siguiente pregunta "
+        "de manera concisa en español.\n"
+        f"Propósito: {estado.proposito or 'N/A'}. "
+        f"Tema: {estado.tema or 'N/A'}. "
+        f"Estilo: {estado.estilo or 'N/A'}. "
+        f"Páginas: {estado.paginas or 'N/A'}. "
+        f"Extras: {estado.extras or 'N/A'}. "
+    )
+    if paso == 1:
+        prompt += "Necesitamos conocer el tema específico del informe."
+    elif paso == 2:
+        prompt += (
+            "Necesitamos saber el estilo preferido (técnico, académico, ejecutivo, etc.)."
+        )
+    elif paso == 3:
+        prompt += "Pregunta por la cantidad de páginas deseadas, máximo 30."
+    elif paso == 4:
+        prompt += "Pregunta si hay fuentes, restricciones o tono a considerar."
+    else:
+        return base
+
+    try:
+        return llm(prompt).strip()
+    except Exception:
+        return base
+
+
 @app.post("/asistente/{conv_id}")
 async def asistente(conv_id: str, msg: Mensaje):
     """Conversación paso a paso para recolectar contexto."""
@@ -165,19 +208,15 @@ async def asistente(conv_id: str, msg: Mensaje):
         if estado.paso == 0:
             estado.proposito = texto
             estado.paso = 1
-            return {
-                "reply": "¿Sobre qué tema específico trata el informe?"
-            }
+            return {"reply": generar_pregunta(1, estado)}
         if estado.paso == 1:
             estado.tema = texto
             estado.paso = 2
-            return {
-                "reply": "¿Qué estilo prefieres (técnico, académico, ejecutivo, etc.)?"
-            }
+            return {"reply": generar_pregunta(2, estado)}
         if estado.paso == 2:
             estado.estilo = texto
             estado.paso = 3
-            return {"reply": "¿Cuántas páginas deseas? (máximo 30)"}
+            return {"reply": generar_pregunta(3, estado)}
         if estado.paso == 3:
             try:
                 num = int(texto.split()[0])
@@ -188,9 +227,7 @@ async def asistente(conv_id: str, msg: Mensaje):
                 return {"reply": "El número debe estar entre 1 y 30."}
             estado.paginas = num
             estado.paso = 4
-            return {
-                "reply": "¿Hay fuentes, restricciones o tono específico que debamos considerar?"
-            }
+            return {"reply": generar_pregunta(4, estado)}
         if estado.paso == 4:
             estado.extras = texto
             estado.estructura = generar_estructura(
