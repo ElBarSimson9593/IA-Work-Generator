@@ -1,86 +1,61 @@
-# Arquitectura de Agentes Inteligentes – IA Work Generator
+# Agentes Lógicos en IA Work Generator
 
-Este documento describe los agentes que componen la lógica del sistema IA Work Generator. Cada agente cumple una función específica dentro del flujo de generación, edición y exportación de informes, permitiendo una arquitectura modular, extensible y optimizada para entornos locales.
+Este documento detalla la arquitectura funcional de los agentes lógicos implementados en **IA Work Generator**, responsables de la orquestación cognitiva, control de flujo y generación de contenido. La aplicación adopta una estructura basada en agentes para separar responsabilidades, mejorar la trazabilidad de decisiones e incrementar la extensibilidad futura del sistema.
 
----
+## 1. Agente de Contexto (`AsistenteCurioso`)
 
-## Agente: Asistente Curioso (Conversacional Inicial)
+Este agente es el primer punto de contacto con el usuario. Su rol principal es guiar la definición del encargo textual mediante preguntas sucesivas que permiten construir un "prompt de alto nivel". Internamente se comporta como una máquina de estados, donde cada respuesta del usuario transiciona hacia un nuevo nodo de información requerido. Solo tras la confirmación final, este agente emite un evento `onContextConfirmed`, que habilita la generación textual.
 
-**Propósito:** Recopilar todos los parámetros clave del informe antes de iniciar su generación.
+Responsabilidades:
 
-* **Tipo:** Agente de entrada basado en modelo LLM (Ollama).
-* **Entrada esperada:** Respuestas del usuario a preguntas progresivas (tema, objetivo, estilo, extensión, público, fuentes).
-* **Salida:** Objeto JSON estructurado con los parámetros recopilados.
-* **Observación:** Su ejecución es obligatoria antes de habilitar los siguientes pasos.
+* Obtener y refinar información sobre el objetivo del documento.
+* Inferir estilo, tono y profundidad mediante heurísticas y ejemplos.
+* Establecer metadatos iniciales para la sesion de generación.
 
----
+## 2. Agente Generador (`RedactorSecuencial`)
 
-## Agente: Generador de Contenido por Secciones
+Este agente es responsable de la generación secuencial del contenido, utilizando LangChain y modelos ejecutados a través de Ollama. Opera mediante "bloques lógicos" definidos en un grafo de dependencias, donde cada nodo representa una sección del documento (introducción, desarrollo, conclusión, etc.) y cada arista define prerequisitos conceptuales.
 
-**Propósito:** Producir un informe completo dividiéndolo en partes (introducción, desarrollo, conclusión) según el contexto aportado.
+Características clave:
 
-* **Tipo:** Agente generativo secuencial.
-* **Modelo:** Ollama (modelos configurables en `config.yaml`).
-* **Entrada:** Contexto estructurado generado por el Asistente Curioso.
-* **Comportamiento:**
+* Lógica modular para secciones.
+* Capacidad de reintento ante fallos de generación.
+* Adaptación de la generación en función del contexto semántico previamente almacenado.
 
-  * Divide el informe en bloques proporcionales a la cantidad de páginas solicitadas (hasta 30).
-  * Emite el texto de forma progresiva con animación en tiempo real.
-  * Compatible con CPU y GPU (autoajuste).
-  * Soporta "modo ahorro" para bajo consumo.
-* **Salida:** Texto markdown enriquecido para edición posterior.
+## 3. Agente de Edición (`EditorInteractivo`)
 
----
+Este agente permite la manipulación del contenido generado antes de su exportación. No actúa como modelo de lenguaje, sino como orquestador de transformaciones estructurales. Expone funciones como:
 
-## Agente: Editor Interactivo
+* Regeneración selectiva de secciones.
+* Aplicación de filtros de estilo.
+* Validación sintáctica y gramatical básica mediante reglas predefinidas.
 
-**Propósito:** Permitir al usuario modificar el contenido generado antes de exportarlo.
+## 4. Agente de Exportación (`FormateadorFinal`)
 
-* **Tipo:** Agente de interfaz (no LLM).
-* **Interfaz:** Editor integrado en la UI con soporte markdown.
-* **Controles:**
+Este agente traduce el contenido Markdown enriquecido hacia formatos finales como DOCX o PDF, integrando metadatos y plantillas. Está integrado con Pandoc y aplica reglas de formateo específicas por tipo de documento.
 
-  * Botones para guardar, regenerar o continuar hacia exportación.
-  * Tabs o secciones para visualizar cada parte del informe.
-* **Observación:** Paso opcional pero recomendado antes de la exportación final.
+Funciones destacadas:
 
----
+* Inserción automática de portada.
+* Inclusión de índice si el documento supera cierto umbral de longitud.
+* Aplicación de hojas de estilo CSS para coherencia visual.
 
-## Agente: Exportador de Documentos
+## 5. Agente de Memoria (`HistorialPersistente`)
 
-**Propósito:** Convertir el markdown generado a formatos profesionales.
+Este agente centraliza la gestión de los informes creados. Utiliza ChromaDB para indexar representaciones semánticas de los contenidos generados y metadatos asociados (fecha, autor, ámbito temático, etc.). Facilita la búsqueda por similitud conceptual y recuperación de sesiones anteriores.
 
-* **Tipo:** Agente de transformación documental.
-* **Tecnología:** Pandoc, llamado desde backend.
-* **Entradas:**
+Capacidades:
 
-  * Texto markdown editado.
-  * Plantillas opcionales (`resources/template.docx`, `template.css`).
-  * Formato de salida elegido (DOCX o PDF).
-* **Salida:** Archivo generado en carpeta definida por `config.yaml`.
+* Indexación incremental al exportar un informe.
+* Búsqueda basada en embeddings.
+* Recuperación estructurada del contenido previo.
 
----
+## Orquestación general
 
-## Agente: Buscador Semántico
+Los agentes se comunican mediante eventos y hooks definidos en el backend, con un bus de mensajes interno que garantiza la secuencialidad, consistencia y trazabilidad. La integración con LangChain permite flexibilidad futura para escalar cada agente con cadenas más complejas, agentes autónomos o integraciones con herramientas externas.
 
-**Propósito:** Recuperar informes anteriores relevantes mediante comparación semántica.
+## Perspectiva de extensión
 
-* **Tecnología:** ChromaDB + sentence-transformers.
-* **Entrada:** Query textual libre del usuario.
-* **Parámetros:** `k` número de resultados más cercanos.
-* **Salida:** Lista de informes con resumen, fecha y opción de exportación directa.
+La arquitectura actual permite, sin reestructuraciones, la incorporación de agentes especializados para dominios como educación, medicina o legal, así como la adopción de herramientas de validación formal, control de plagio o análisis de impacto.
 
----
-
-## Futuro: Orquestador de Agentes
-
-**Objetivo:** Coordinar de forma automática la ejecución secuencial y adaptativa de todos los agentes descritos.
-
-* Validar completitud del contexto antes de generar.
-* Determinar estrategias según el rendimiento disponible (modo ahorro, GPU).
-* Recomendar secciones a regenerar o expandir.
-* Enlazar resultados del historial como fuentes de referencia.
-
----
-
-Esta arquitectura orientada a agentes permite escalar el sistema hacia funcionalidades avanzadas de productividad, manteniendo simplicidad en el flujo de usuario y eficiencia en ejecución local.
+Este enfoque modular garantiza la sostenibilidad técnica del sistema y su capacidad de adaptarse a requerimientos futuros sin comprometer su desempeño ni su filosofía de privacidad local.
