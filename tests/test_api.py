@@ -19,7 +19,8 @@ def setup_module(module):
 client = TestClient(bm.app)
 
 
-def test_asistente_flujo():
+def test_asistente_flujo(monkeypatch):
+    monkeypatch.setattr(bm, "generar_estructura", lambda *a, **k: "estructura")
     cid = "test_conv"
     resp = client.post(f"/asistente/{cid}", json={"mensaje": "hola"})
     assert resp.status_code == 200
@@ -38,6 +39,9 @@ def test_asistente_flujo():
     assert "fuentes" in resp.json()["reply"].lower()
 
     resp = client.post(f"/asistente/{cid}", json={"mensaje": "ninguna"})
+    assert "estructura" in resp.json()["reply"].lower()
+
+    resp = client.post(f"/asistente/{cid}", json={"mensaje": "sí"})
     data = resp.json()
     assert data["reply"] == "Contexto completado"
     assert data["contexto"]["paginas"] == 5

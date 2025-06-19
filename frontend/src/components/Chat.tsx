@@ -24,6 +24,7 @@ export default function Chat({ onCompleted }: ChatProps) {
   const [convId] = useState(() => uuidv4());
   const ctxRef = useRef<Contexto>({});
   const inputRef = useRef<HTMLInputElement>(null);
+  const [waitingConfirm, setWaitingConfirm] = useState(false);
 
   useEffect(() => {
     async function init() {
@@ -56,7 +57,11 @@ export default function Chat({ onCompleted }: ChatProps) {
         ctxRef.current = data.contexto as Contexto;
       }
       setMessages((prev) => [...prev, { from: "bot", text: data.reply }]);
+      if (data.estructura) {
+        setWaitingConfirm(true);
+      }
       if (data.contexto) {
+        setWaitingConfirm(false);
         onCompleted(ctxRef.current);
       }
     }
@@ -74,7 +79,7 @@ export default function Chat({ onCompleted }: ChatProps) {
         <input
           ref={inputRef}
           className="flex-1 border rounded p-2"
-          placeholder="Escribe tu respuesta..."
+          placeholder={waitingConfirm ? "¿Aceptas la estructura?" : "Escribe tu respuesta..."}
           value={input}
           onChange={(e) => setInput(e.currentTarget.value)}
           onKeyDown={(e) => {
