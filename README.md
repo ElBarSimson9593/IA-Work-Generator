@@ -4,7 +4,7 @@ Proyecto de ejemplo para generar informes de forma local utilizando un stack lib
 
 ## Estructura
 
-- `frontend/` – Aplicación de escritorio creada con Tauri + React + TailwindCSS + ShadCN UI.
+- `frontend/` – Aplicación de escritorio creada con Tauri + React + TailwindCSS.
 - `backend/` – API local en Python usando FastAPI con LangChain y Ollama.
 - `resources/` – Archivos estáticos y recursos (pendiente de uso).
 - `config/` – Archivos de configuración de la aplicación.
