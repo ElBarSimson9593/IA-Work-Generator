@@ -9,7 +9,7 @@ from uuid import uuid4
 from datetime import datetime
 from pathlib import Path
 from pydantic import BaseModel
-from langchain.llms import Ollama
+from langchain_community.llms import Ollama
 import chromadb
 from sentence_transformers import SentenceTransformer
 import yaml
