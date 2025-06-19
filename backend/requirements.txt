@@ -7,3 +7,4 @@ apache-tika
 pydantic
 python-multipart
 aiofiles
+sentence-transformers
