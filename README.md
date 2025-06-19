@@ -102,6 +102,12 @@ El backend se expone en: `http://127.0.0.1:8000`.
 
 CORS habilitado para: `http://127.0.0.1:1420` y `http://localhost:1420`.
 
+### Endpoints relevantes
+
+- `POST /asistente/{id}` – Conversación paso a paso. Envía `{ "mensaje": "texto" }` para
+  avanzar y obtener el contexto requerido antes de generar el informe.
+- `POST /generar` – Genera el informe con los datos recopilados.
+
 ---
 
 ### Frontend (Tauri)
