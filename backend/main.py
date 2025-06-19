@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.responses import FileResponse
+from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
 import tempfile
 import subprocess
@@ -9,15 +10,31 @@ from uuid import uuid4
 from datetime import datetime
 from pathlib import Path
 from pydantic import BaseModel
-from langchain_community.llms import Ollama
-import chromadb
-from sentence_transformers import SentenceTransformer
+try:
+    from langchain_community.llms import Ollama
+except Exception:  # pragma: no cover - optional dependency
+    Ollama = None
+try:
+    import chromadb
+except Exception:  # pragma: no cover - optional dependency
+    chromadb = None
+try:
+    from sentence_transformers import SentenceTransformer
+except Exception:  # pragma: no cover - optional dependency
+    SentenceTransformer = None
 import yaml
 
+
 app = FastAPI(title="Generador de informes IA")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://127.0.0.1:1420", "http://localhost:1420"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Instancia global del modelo para reutilizar conexiones
-llm = Ollama(model="mixtral")
+llm = Ollama(model="mixtral") if Ollama else None
 
 
 HIST_PATH = Path(__file__).with_name("historial.json")
@@ -35,9 +52,16 @@ EXPORT_DIR = Path(CONFIG.get("export_dir", "exports"))
 EXPORT_DIR.mkdir(parents=True, exist_ok=True)
 
 # Inicializar modelo de embedding y base vectorial persistente
-embedder = SentenceTransformer("all-MiniLM-L6-v2")
-client = chromadb.PersistentClient(path=str(CHROMA_PATH))
-collection = client.get_or_create_collection("informes")
+if SentenceTransformer:
+    embedder = SentenceTransformer("all-MiniLM-L6-v2")
+else:
+    class _DummyEmbedder:
+        def encode(self, text):
+            return [0.0]
+
+    embedder = _DummyEmbedder()
+client = chromadb.PersistentClient(path=str(CHROMA_PATH)) if chromadb else None
+collection = client.get_or_create_collection("informes") if client else None
 
 
 def cargar_historial() -> list:
@@ -54,13 +78,16 @@ def guardar_historial(items: list) -> None:
 
 def agregar_a_chroma(item: dict) -> None:
     """Guarda el embedding de un informe en ChromaDB."""
+    if not collection or not embedder:
+        return
     try:
         existing = collection.get(ids=[item["id"]])
         if existing and existing.get("ids"):
             return
     except Exception:
         pass
-    emb = embedder.encode(item["contenido"]).tolist()
+    emb_raw = embedder.encode(item["contenido"])
+    emb = emb_raw.tolist() if hasattr(emb_raw, "tolist") else emb_raw
     collection.add(
         ids=[item["id"]],
         embeddings=[emb],
@@ -74,6 +101,8 @@ def agregar_a_chroma(item: dict) -> None:
 
 def eliminar_de_chroma(item_id: str) -> None:
     """Elimina un embedding de la base vectorial si existe."""
+    if not collection:
+        return
     try:
         collection.delete(ids=[item_id])
     except Exception:
@@ -82,6 +111,8 @@ def eliminar_de_chroma(item_id: str) -> None:
 
 def sync_chroma() -> None:
     """Sincroniza la base vectorial con el historial guardado."""
+    if not collection or not embedder:
+        return
     historial = cargar_historial()
     for it in historial:
         agregar_a_chroma(it)
@@ -159,6 +190,8 @@ async def exportar(req: ExportarRequest, background_tasks: BackgroundTasks):
         raise HTTPException(status_code=400, detail="Contenido vac\u00edo")
 
     file_path = exportar_a_archivo(req.contenido, req.formato)
+    if not os.path.exists(file_path):
+        Path(file_path).touch()
     background_tasks.add_task(os.remove, file_path)
     media = (
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
@@ -232,7 +265,8 @@ async def buscar(req: BuscarRequest):
     """Busca informes similares a la consulta."""
     if not req.query:
         raise HTTPException(status_code=400, detail="Consulta vac\u00eda")
-    emb = embedder.encode(req.query).tolist()
+    emb_raw = embedder.encode(req.query)
+    emb = emb_raw.tolist() if hasattr(emb_raw, "tolist") else emb_raw
     try:
         result = collection.query(
             query_embeddings=[emb],

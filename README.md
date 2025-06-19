@@ -27,7 +27,7 @@ python -m venv venv
 source venv/bin/activate  # En Windows: venv\Scripts\activate
 ```
 
-3. Instalar dependencias:
+3. Instalar dependencias (se ha añadido `httpx` para realizar peticiones HTTP):
 
 ```bash
 pip install -r backend/requirements.txt
@@ -52,6 +52,7 @@ python backend/main.py
 ```
 
 La API quedará disponible en `http://127.0.0.1:8000`.
+El backend incluye CORS habilitado para las URLs `http://127.0.0.1:1420` y `http://localhost:1420` del frontend.
 
 La configuración global se encuentra en `config/config.yaml` y permite definir
 la carpeta de exportación y plantillas.
