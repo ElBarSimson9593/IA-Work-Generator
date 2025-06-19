@@ -12,8 +12,10 @@ from pathlib import Path
 from pydantic import BaseModel
 try:
     from langchain_community.llms import Ollama
+    from langchain_community.llms.ollama import OllamaEndpointNotFoundError
 except Exception:  # pragma: no cover - optional dependency
     Ollama = None
+    OllamaEndpointNotFoundError = Exception
 try:
     import chromadb
 except Exception:  # pragma: no cover - optional dependency
@@ -125,7 +127,13 @@ def generar_contenido(tema: str, tipo: str) -> str:
         f"Redacta un informe profesional tipo \"{tipo}\" sobre el tema: \"{tema}\". "
         "Incluye introducci\u00f3n, desarrollo argumental y conclusiones."
     )
-    return llm(prompt)
+    try:
+        return llm(prompt)
+    except OllamaEndpointNotFoundError as exc:
+        raise HTTPException(
+            status_code=500,
+            detail="Modelo Mixtral no encontrado. Ejecute `ollama pull mixtral`",
+        ) from exc
 
 
 def exportar_a_archivo(contenido: str, formato: str) -> str:

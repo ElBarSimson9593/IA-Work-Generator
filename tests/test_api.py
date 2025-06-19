@@ -5,6 +5,7 @@ import sys
 sys.path.insert(0, os.path.abspath("."))
 from fastapi.testclient import TestClient
 import backend.main as bm
+from langchain_community.llms.ollama import OllamaEndpointNotFoundError
 
 
 def setup_module(module):
@@ -31,6 +32,16 @@ def test_generar_sin_llm(monkeypatch):
     resp = client.post("/generar", json={"tema": "x", "tipo": "y"})
     assert resp.status_code == 500
     assert resp.json()["detail"] == "Modelo Ollama no disponible"
+
+
+def test_generar_modelo_no_encontrado(monkeypatch):
+    def _fail(prompt):
+        raise OllamaEndpointNotFoundError("not found")
+
+    monkeypatch.setattr(bm, "llm", _fail)
+    resp = client.post("/generar", json={"tema": "x", "tipo": "y"})
+    assert resp.status_code == 500
+    assert "pull mixtral" in resp.json()["detail"]
 
 
 def test_exportar(monkeypatch, tmp_path):
