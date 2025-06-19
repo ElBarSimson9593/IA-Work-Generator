@@ -31,6 +31,7 @@ source venv/bin/activate  # En Windows: venv\Scripts\activate
 
 ```bash
 pip install -r backend/requirements.txt
+pip install -U langchain-community sentence-transformers
 ```
 
 4. Instalar Pandoc (si no est\u00e1 en el sistema). En Debian/Ubuntu puedes ejecutar:
