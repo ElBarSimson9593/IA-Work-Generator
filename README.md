@@ -19,6 +19,13 @@ Proyecto de ejemplo para generar informes de forma local utilizando un stack lib
 ollama run mixtral  # descarga el modelo si es necesario
 ollama serve &      # deja el servicio escuchando en 11434
 ```
+Si obtienes un error `OllamaEndpointNotFoundError` indicando que el modelo no
+existe, ejecuta:
+
+```bash
+ollama pull mixtral
+```
+para descargarlo manualmente.
 
 2. Crear entorno virtual:
 
