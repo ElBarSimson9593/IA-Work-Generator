@@ -12,10 +12,12 @@ from datetime import datetime
 from pathlib import Path
 from pydantic import BaseModel
 try:
-    from langchain_community.llms import Ollama
+    from langchain_ollama import OllamaLLM
+except Exception:  # pragma: no cover - optional dependency
+    OllamaLLM = None
+try:
     from langchain_community.llms.ollama import OllamaEndpointNotFoundError
 except Exception:  # pragma: no cover - optional dependency
-    Ollama = None
     OllamaEndpointNotFoundError = Exception
 try:
     import chromadb
@@ -52,7 +54,15 @@ else:
 
 # Instancia global del modelo para reutilizar conexiones
 MODEL_NAME = CONFIG.get("model", "mixtral")
-llm = Ollama(model=MODEL_NAME) if Ollama else None
+llm = OllamaLLM(model=MODEL_NAME) if OllamaLLM else None
+
+def _invoke_llm(prompt: str) -> str:
+    """Invoca el modelo compatible con LangChain."""
+    if llm is None:
+        raise HTTPException(status_code=500, detail="Modelo Ollama no disponible")
+    if hasattr(llm, "invoke"):
+        return llm.invoke(prompt)
+    return llm(prompt)
 
 EXPORT_DIR = Path(CONFIG.get("export_dir", "exports"))
 EXPORT_DIR.mkdir(parents=True, exist_ok=True)
@@ -196,7 +206,7 @@ def generar_pregunta(paso: int, estado: EstadoConversacion) -> str:
         return base
 
     try:
-        return llm(prompt).strip()
+        return _invoke_llm(prompt).strip()
     except Exception:
         return base
 
@@ -280,7 +290,7 @@ def generar_estructura(
         "Devuelve solo los títulos de las secciones con una breve descripción de cada una."
     )
     try:
-        return llm(prompt)
+        return _invoke_llm(prompt)
     except OllamaEndpointNotFoundError as exc:
         raise HTTPException(
             status_code=500,
@@ -308,7 +318,7 @@ def generar_contenido(
         f"Consideraciones adicionales: {extras or 'ninguna'}."
     )
     try:
-        return llm(prompt)
+        return _invoke_llm(prompt)
     except OllamaEndpointNotFoundError as exc:
         raise HTTPException(
             status_code=500,
@@ -533,21 +543,38 @@ def _infer_context(text: str) -> dict:
 
 @app.post("/conversar")
 async def conversar(req: ConversacionRequest):
-    """Maneja mensajes de chat y decide si se inicia la generación."""
-    if req.mensaje.startswith("UPDATE:"):
-        return {"reply": "actualizado"}
+    """Procesa mensajes libres usando el modelo de lenguaje."""
+    prompt = req.mensaje
+    if prompt.startswith("UPDATE:"):
+        print("Mensaje recibido:", prompt)
+        print("Respuesta generada:", "actualizado")
+        return {"respuesta": "actualizado"}
 
     if req.modo == "generar":
         try:
-            texto = generar_contenido(req.mensaje, "Informe")
+            texto = generar_contenido(prompt, "Informe")
         except Exception:
-            texto = f"Generando informe: {req.mensaje}"
-        return {"reply": texto}
+            texto = f"Generando informe: {prompt}"
+        print("Mensaje recibido:", prompt)
+        print("Respuesta generada:", texto)
+        return {"respuesta": texto}
 
-    start = _should_start(req.mensaje)
-    ctx = _infer_context(req.mensaje) if start else None
-    reply = "Entendido" if start else "Mensaje recibido"
-    return {"reply": reply, "iniciar_generacion": start, "contexto": ctx}
+    respuesta = ""
+    if llm:
+        try:
+            respuesta = _invoke_llm(prompt)
+        except Exception:
+            respuesta = ""
+    print("Mensaje recibido:", prompt)
+    print("Respuesta generada:", respuesta)
+
+    start = _should_start(prompt)
+    ctx = _infer_context(prompt) if start else None
+    return {
+        "respuesta": respuesta,
+        "iniciar_generacion": start,
+        "contexto": ctx,
+    }
 
 
 @app.post("/buscar")
