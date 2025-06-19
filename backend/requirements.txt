@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+langchain
+ollama
+chromadb
+apache-tika
+pydantic
+python-multipart
+aiofiles
+sentence-transformers
