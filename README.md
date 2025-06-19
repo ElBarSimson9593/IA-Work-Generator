@@ -27,6 +27,13 @@ ollama pull mixtral
 ```
 para descargarlo manualmente.
 
+Para usar un modelo más pequeño puedes ejecutar:
+
+```bash
+ollama pull mistral
+```
+Y establecer `model: mistral` en `config/config.yaml`.
+
 2. Crear entorno virtual:
 
 ```bash
@@ -62,7 +69,7 @@ La API quedará disponible en `http://127.0.0.1:8000`.
 El backend incluye CORS habilitado para las URLs `http://127.0.0.1:1420` y `http://localhost:1420` del frontend.
 
 La configuración global se encuentra en `config/config.yaml` y permite definir
-la carpeta de exportación y plantillas.
+la carpeta de exportación, plantillas y el modelo de Ollama a utilizar.
 
 ### Frontend (Tauri)
 

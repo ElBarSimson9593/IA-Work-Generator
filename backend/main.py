@@ -35,10 +35,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Instancia global del modelo para reutilizar conexiones
-llm = Ollama(model="mixtral") if Ollama else None
-
-
 HIST_PATH = Path(__file__).with_name("historial.json")
 CHROMA_PATH = Path(__file__).with_name("chroma_db")
 
@@ -50,12 +46,23 @@ if CONFIG_PATH.exists():
 else:
     CONFIG = {}
 
+# Instancia global del modelo para reutilizar conexiones
+MODEL_NAME = CONFIG.get("model", "mixtral")
+llm = Ollama(model=MODEL_NAME) if Ollama else None
+
 EXPORT_DIR = Path(CONFIG.get("export_dir", "exports"))
 EXPORT_DIR.mkdir(parents=True, exist_ok=True)
 
 # Inicializar modelo de embedding y base vectorial persistente
 if SentenceTransformer:
-    embedder = SentenceTransformer("all-MiniLM-L6-v2")
+    try:
+        embedder = SentenceTransformer("all-MiniLM-L6-v2")
+    except Exception:  # pragma: no cover - handle offline env
+        class _DummyEmbedder:
+            def encode(self, text):
+                return [0.0]
+
+        embedder = _DummyEmbedder()
 else:
     class _DummyEmbedder:
         def encode(self, text):
