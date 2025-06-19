@@ -108,3 +108,14 @@ def test_buscar(monkeypatch):
     assert resp.status_code == 200
     data = resp.json()
     assert data[0]["id"] == "1"
+
+
+def test_conversar_iniciar():
+    """Ensure conversar endpoint triggers generation flag."""
+    resp = client.post(
+        "/conversar",
+        json={"mensaje": "Quiero generar un informe sobre IA"},
+    )
+    assert resp.status_code == 200
+    payload = resp.json()
+    assert payload["iniciar_generacion"] is True
