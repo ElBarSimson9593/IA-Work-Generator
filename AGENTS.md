@@ -1,43 +1,37 @@
 # Guía Operativa de Agentes
 
-Este documento, alojado en la raíz del repositorio como `AGENTS.md`, tiene el cometido de describir los procedimientos concretos para crear, modificar y mantener los agentes lógicos que sustentan IA Work Generator. Al diferenciarse de la documentación arquitectónica —trasladada a `docs/architecture/architecture.md`—, su enfoque es eminentemente instrumental y va dirigido al desarrollador que necesite intervenir en el código fuente con rapidez y criterio consistente.
+Este documento describe, con alcance integral, los procedimientos para crear, modificar y mantener los agentes lógicos que sustentan IA Work Generator tanto en el backend como en el frontend. Al diferenciarse de la documentación arquitectónica —ubicada en `docs/architecture/architecture.md`—, su enfoque es eminentemente instrumental y está dirigido al desarrollador que necesite intervenir en el código fuente con rapidez y criterios uniformes.
 
-## Alcance y filosofía de diseño
+## Filosofía de diseño y alcance común
 
-Los agentes representan unidades autocontenidas de responsabilidad única. Cada uno expone una interfaz explícita que define entradas, salidas y efectos colaterales aceptables. Esta segmentación obedece al principio de responsabilidad única y facilita que la inteligencia colectiva del sistema evolucione de forma incremental sin comprometer la estabilidad global. La regla rectora es conservar la transparencia operacional, de modo que cualquier acción ejecutada por un agente debe quedar registrada en logs estructurados para su posterior auditoría.
+Los agentes representan unidades autocontenidas de responsabilidad única y exponen una interfaz explícita que define entradas, salidas y efectos colaterales aceptables. Este patrón se replica en ambos extremos de la aplicación: en el backend como coroutines Python y en el frontend como hooks o servicios React. En cada caso se impone la transparencia operacional: toda acción ejecutada por un agente se registra en logs estructurados para su auditoría y se acompaña de eventos normalizados publicados en un bus asíncrono, lo que permite el desacoplamiento sin renunciar a la trazabilidad.
 
-## Ubicación del código
+## Backend: convenciones y flujo de trabajo
 
-Todo agente reside, de manera individual, bajo el espacio `backend/agents/`. El nombre de la carpeta y del módulo Python debe reflejar su responsabilidad, por ejemplo `context_agent/` o `export_agent/`. Dentro de cada módulo, el archivo `config.py` define los parámetros ajustables, mientras que `core.py` contiene la implementación de la lógica principal. Las pruebas unitarias se ubican en `tests/agents/`, siguiendo la misma convención de nombres; por ejemplo, las pruebas de `context_agent` se alojan en `tests/agents/test_context_agent.py`.
+El código de cada agente backend reside en `backend/agents/<nombre_del_agente>/`. El módulo principal se llama `core.py` y su clase pública deriva de `BaseAgent`, implementando la firma `run(payload: dict) -> dict`. Los parámetros ajustables se agrupan en `config.py`. Las pruebas unitarias se ubican en `tests/agents/` siguiendo la misma convención nominal; por ejemplo, las pruebas de `context_agent` se almacenan en `tests/agents/test_context_agent.py`. El pipeline de integración continua ejecuta `pytest` con cobertura mínima del setenta y cinco por ciento. La comunicación interna usa un bus basado en `asyncio.Queue` y cada agente documenta los eventos que consume y produce para evitar acoplamientos ocultos. El log se produce mediante `get_structured_logger`, que serializa en JSON y añade metadatos de sesión.
 
-## Flujo de trabajo recomendado
+## Frontend: agentes de interfaz y pautas de integración
 
-Cuando se crea un agente nuevo, el procedimiento arranca con la formulación de su contrato público. Dicho contrato se codifica como una clase derivada de `BaseAgent`, que impone la firma estándar `run(payload: dict) -> dict`. Una vez definida, se confecciona un stub mínimo que únicamente lanza una excepción de “NotImplemented”. Posteriormente, se redactan las pruebas unitarias que ejerciten los casos nominales y los bordes funcionales. Con ese andamiaje se procede a implementar la lógica real, respetando las directrices de estilo PEP 8 y las prácticas de programación defensiva.
+El concepto de agente se materializa en el frontend como servicios React aislados que encapsulan lógica de interacción, orquestación de llamadas REST al backend y gestión de estado derivado. Cada agente frontend vive en `frontend/src/agents/<NombreDelAgente>/` y expone un hook principal con nomenclatura `use<NombreDelAgente>()`. Dicho hook devuelve un objeto cuyas claves reflejan acciones y estados observables. La comunicación con el backend se realiza mediante `fetch` o `axios` envueltos en un wrapper `request.ts` que incorpora control de cancelación, reintentos y serialización de errores. El estado se mantiene con Zustand; los agentes no deben manipular el contexto global directamente, sino a través de acciones tipadas definidas en sus propios stores. Las pruebas se escriben con Vitest y React Testing Library en `frontend/tests/agents/`, utilizando mocks de red para aislar la lógica de presentación.
 
-## Integración con el bus de eventos
+En cuanto al patrón visual, cualquier componente que dependa de un agente debe recibir sus props desde el hook y abstenerse de instanciarlo internamente para favorecer la inyección de dependencias y la testabilidad. El estilo se implementa con TailwindCSS; los componentes usan shadcn/ui exclusivamente para artefactos básicos, evitando escribir HTML sin estilado centralizado. Cada agente frontend documenta los eventos que escucha, normalmente a través de WebSockets cuando se requiere actualización en tiempo real. La serialización de eventos respeta el esquema JSON definido en `frontend/src/protocols/events.ts`.
 
-La comunicación entre agentes se realiza mediante un bus asíncrono basado en `asyncio.Queue`. Para suscribirse a un tipo de evento concreto, el agente implementa la rutina `subscribe(self, event_type: str)`. La emisión de eventos se lleva a cabo a través de la llamada `publish(event: Event)` que acepta un objeto serializable. Cuando se añade un agente nuevo, es imperativo documentar en su docstring qué eventos consume y cuáles produce, con el fin de mantener la trazabilidad y evitar acoplamientos ocultos.
+## Registro, observabilidad y métricas cruzadas
 
-## Registro y observabilidad
+Tanto en backend como en frontend, los agentes deben invocar el sistema de telemetría unificado mediante la función `track_event(event_name, payload)`. Esto alimenta la consola de observabilidad que corre en modo local, permitiendo al desarrollador inspeccionar trazas, latencias y errores en un tablero Grafana configurado para esta solución. Los eventos de tipo `agent_error` desencadenan alertas sonoras y se almacenan con prioridad alta en el log local cifrado. Esta práctica permite al equipo mantener una visión holística del desempeño del sistema sin exponer datos fuera del entorno local.
 
-Cada agente debe inicializar un logger propio mediante la utilidad `get_structured_logger(name)`, que formatea las entradas en JSON y captura contexto adicional como la huella temporal, el identificador de sesión y el nivel de severidad. No se permite la impresión directa por consola fuera del logger. Los mensajes de nivel inferior a `DEBUG` se reservan para diagnósticos y no deben persistir en entornos de producción salvo indicación contraria.
+## Ciclo de despliegue y versionado
 
-## Ciclo de pruebas
+La incorporación de un agente backend nuevo exige incrementar la versión menor del paquete, mientras que romper contratos públicos escala a versión mayor. En el frontend, la adición de un agente con impacto visible en la UI eleva la versión de la aplicación Tauri en el mismo patrón semántico. Durante la fase de `tauri build`, un script verifica la paridad de versiones entre frontend y backend; cualquier divergencia detiene la compilación hasta que se sincronicen los números.
 
-El pipeline de integración continua ejecuta `pytest` con la bandera `--strict-markers` y `--cov=backend/agents/`. Cualquier agente incorporado que reduzca la cobertura global por debajo del umbral configurado —actualmente setenta y cinco por ciento— detendrá el despliegue. Las pruebas deben aislarse de recursos externos y, cuando ello resulte imposible, simular la dependencia mediante fixtures.
+## Eliminación de agentes y gobernanza del código
 
-## Despliegue y versionado
+La retirada de un agente implica un pull request acompañado de justificación y pruebas que demuestren la equivalencia funcional tras la migración de responsabilidades. No se aprueban eliminaciones que reduzcan la cobertura de pruebas. El mismo PR debe actualizar el esquema de eventos, la configuración YAML y la documentación pertinente.
 
-La introducción de un agente nuevo implica un incremento menor en la versión semántica del paquete backend, por ejemplo de `2.3.1` a `2.4.0`. Si el cambio afecta contratos públicos o esquemas de eventos, el salto es mayor y se documenta en `CHANGELOG.md`. El despliegue se orquesta mediante el script `scripts/release_backend.sh` que etiqueta el commit, actualiza los artefactos y dispara la compilación en Tauri.
+## Configuración y validación de parámetros
 
-## Eliminación de agentes
-
-La retirada de un agente requiere una proposición de mejora (PR) que justifique su obsolescencia y describa la migración de sus responsabilidades. Se acepta únicamente cuando existe cobertura de pruebas que demuestre la equivalencia funcional tras la remoción. El PR debe referenciar la actualización de configuración y la limpieza del historial semántico pertinente.
-
-## Consulta rápida de parámetros
-
-Los ajustes configurables de cada agente se documentan en `config/config.yaml` bajo la clave con su nombre. Para modificarlos, se edita el YAML con cuidado de no romper la validación de esquema; cualquier inconsistencia detendrá la carga del backend. El comando `python backend/tools/validate_config.py` permite verificar la integridad antes de confirmar el commit.
+Los parámetros configurables de backend residen en `config/config.yaml`. En frontend, los defaults se hallan en `frontend/src/config/defaults.ts`. Toda modificación se valida mediante el script `backend/tools/validate_config.py` y su contraparte `frontend/scripts/validate_env.ts`, con ejecución automática en el pipeline CI.
 
 ## Conclusión
 
-Este archivo establece un marco operativo uniforme y reproducible para la gestión del ciclo de vida de los agentes. Siguiendo estas pautas, el equipo de desarrollo preservará la robustez y extensibilidad del sistema, alineándose con la misión estratégica de proveer una solución local, eficiente y confiable.
+Con este compendio se cubren las dos caras de la arquitectura de agentes, garantizando un ecosistema coherente desde la lógica de servidor hasta la interacción de usuario. La adhesión a estas directrices preserva la robustez, mantenibilidad y extensibilidad del proyecto, alineándose con nuestro compromiso de ofrecer una solución local eficiente y confiable.
