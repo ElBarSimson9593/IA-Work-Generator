@@ -1,93 +1,100 @@
-# Documentación de Agentes Lógicos
+# agents.md – Documentación de Agentes Lógicos del Sistema
 
-Este documento describe la lógica interna y los componentes funcionales que orquestan el comportamiento inteligente de **IA Work Generator**. Cada agente actúa como una entidad modular con responsabilidades bien definidas, facilitando el razonamiento contextual, la generación coherente y la adaptabilidad de la aplicación a distintos casos de uso.
+Este documento describe los agentes lógicos internos del sistema **IA Work Generator**, responsables de la orquestación, generación y gestión contextual del contenido. Cada agente cumple una función especializada dentro del flujo de generación, y su modularidad permite extender o sustituir componentes sin afectar la lógica global.
 
-## 1. Agente de Contexto
+## Agente de Contexto
 
-### Rol principal:
+**Función:** Recopila los parámetros iniciales a través de una conversación estructurada. Define el propósito, tono, nivel de formalidad, audiencia y estructura deseada. Utiliza prompts guía para construir una representación semántica del informe antes de iniciar la generación.
 
-Responsable de iniciar la interacción con el usuario y extraer los parámetros fundamentales para la generación del informe. Opera mediante un flujo conversacional guiado.
+**Entradas:**
 
-### Funciones clave:
+* Propósito del informe
+* Audiencia objetivo
+* Nivel de formalidad
+* Tono deseado
+* Longitud esperada
 
-* Identificación del propósito del informe.
-* Definición del tono (formal, técnico, divulgativo, etc.).
-* Segmentación del público objetivo.
-* Configuración del nivel de profundidad deseado.
-* Propuesta de una estructura preliminar del documento.
+**Salidas:**
 
-### Implementación:
+* Esquema estructural con secciones y subtítulos sugeridos
+* Metadatos iniciales del informe
+* Estado contextual persistente
 
-Basado en LangChain con prompts estructurados. Utiliza plantillas preconfiguradas según dominio (académico o corporativo) para ajustar el framing inicial.
+## Agente Generador de Texto
 
-## 2. Agente Generador de Texto
+**Función:** Ejecuta la generación progresiva de contenido por secciones, utilizando los modelos LLM locales mediante LangChain y Ollama. Cada bloque generado es anotado con un identificador estructurado (ID de sección) para permitir trazabilidad, edición dirigida y análisis semántico posterior.
 
-### Rol principal:
+**Entradas:**
 
-Encargado de la generación progresiva de contenido textual a partir del contexto validado. Secciona el contenido según la estructura acordada.
+* Sección a generar (ID + título)
+* Contexto global del documento
+* Plantilla estilística (si aplica)
 
-### Funciones clave:
+**Salidas:**
 
-* Redacción sección por sección (introducción, desarrollo, conclusión, etc.).
-* Simulación de escritura en tiempo real.
-* Mecanismos de retroalimentación ante ambigüedades.
-* Modularidad para regeneración selectiva.
+* Texto generado para la sección
+* Identificador único del contenido
+* Registro en historial
 
-### Implementación:
+## Agente de Secciones
 
-Utiliza Ollama como backend de inferencia LLM y se orquesta mediante LangChain para mantener coherencia entre secciones. Aplica prompts contextuales enriquecidos con memoria temporal.
+**Función:** Organiza y mantiene una jerarquía de secciones y subsecciones. Implementa un árbol estructural que vincula títulos, subtítulos y párrafos. Permite operaciones como conteo, localización, edición selectiva o eliminación de componentes individuales del informe.
 
-## 3. Agente Editor
+**Entradas:**
 
-### Rol principal:
+* Árbol de estructura textual
+* Solicitudes del usuario (consultas tipo "modifica", "cuenta", "elimina")
 
-Proporciona un entorno de edición enriquecida donde el usuario puede ajustar, corregir o solicitar regeneraciones parciales del contenido generado.
+**Salidas:**
 
-### Funciones clave:
+* Referencia a la sección objetivo
+* Métricas asociadas (caracteres, palabras, profundidad)
+* Actualización estructural en tiempo real
 
-* Edición directa del contenido.
-* Reescritura bajo diferentes estilos o enfoques.
-* Regeneración contextual de secciones marcadas.
-* Validación semántica y sugerencias de mejora.
+## Agente Editor
 
-### Implementación:
+**Función:** Presenta el contenido al usuario con opciones para modificar, regenerar o reescribir cualquier fragmento. Aplica sugerencias del usuario sobre el texto, conservando la coherencia con el contexto general y realizando ajustes estilísticos automáticos si es necesario.
 
-Interfaz React con integración a un backend de microservicios que consulta a LangChain con prompts de revisión. Se apoya en historiales previos y plantillas adaptativas.
+**Entradas:**
 
-## 4. Agente de Exportación
+* Texto existente
+* Instrucciones del usuario (por ej., "hazlo más formal")
+* ID de sección
 
-### Rol principal:
+**Salidas:**
 
-Encargado de transformar el contenido final en formatos profesionales editables y de registrar su traza documental.
+* Nueva versión del texto
+* Registro de cambios
 
-### Funciones clave:
+## Agente Exportador
 
-* Conversión a DOCX y PDF mediante Pandoc.
-* Inserción de metadatos (título, autor, fecha, parámetros contextuales).
-* Registro automático en historial.
-* Preparación para exportaciones futuras (pptx, xlsx).
+**Función:** Prepara y exporta el contenido a formatos como DOCX y PDF mediante Pandoc. Valida la integridad estructural del documento antes de su compilación final, incluyendo portada, índice si se requiere, y metadatos.
 
-### Implementación:
+**Entradas:**
 
-Pipeline de renderizado basado en Pandoc con plantillas Markdown enriquecidas. Se apoya en los archivos de `resources/` para asegurar consistencia visual y estructural.
+* Documento completo (estructura + contenido)
+* Formato deseado
+* Opciones de exportación (estilo, plantilla visual)
 
-## 5. Agente de Historial y Memoria
+**Salidas:**
 
-### Rol principal:
+* Archivo final exportado
+* Registro en historial
 
-Gestiona la persistencia de contenidos generados, habilitando la búsqueda semántica, el versionado y la reutilización inteligente de informes.
+## Agente de Historial Semántico
 
-### Funciones clave:
+**Función:** Mantiene un repositorio local de informes previos, accesible mediante búsqueda semántica via ChromaDB. Indexa metadatos y contenido textual con embeddings para permitir recuperación inteligente por tema, fecha o estructura.
 
-* Indexación semántica con ChromaDB.
-* Búsqueda por intención, título o contexto.
-* Agrupación de informes por temática o dominio.
-* Versionado y trazabilidad del contenido.
+**Entradas:**
 
-### Implementación:
+* Informe generado (texto y metadatos)
+* Consulta de usuario
 
-Integración directa con ChromaDB usando embeddings generados por `sentence-transformers`. Se apoya en `historial.json` como capa de persistencia local.
+**Salidas:**
+
+* Resultados relevantes por similitud
+* Carga de informe anterior en editor
 
 ---
 
-Cada agente está diseñado para operar de forma desacoplada pero interoperable, lo que permite escalar funcionalmente el sistema sin introducir cuellos de botella lógicos. La arquitectura modular garantiza la posibilidad de sustituir, ampliar o especializar agentes sin comprometer la estabilidad del ecosistema general.
+Cada agente está diseñado bajo principios de independencia funcional, trazabilidad y extensibilidad. La integración entre agentes se realiza mediante paso de contexto enriquecido (context objects), permitiendo conservar el estado conversacional y estructural del documento en todo momento.
