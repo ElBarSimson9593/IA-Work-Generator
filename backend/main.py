@@ -25,6 +25,7 @@ try:
 except Exception:  # pragma: no cover - optional dependency
     SentenceTransformer = None
 import yaml
+from threading import Lock
 
 
 app = FastAPI(title="Generador de informes IA")
@@ -126,13 +127,93 @@ def sync_chroma() -> None:
     for it in historial:
         agregar_a_chroma(it)
 
-def generar_contenido(tema: str, tipo: str) -> str:
+# --- Conversación Asistente Curioso ---
+class EstadoConversacion(BaseModel):
+    paso: int = 0
+    proposito: str | None = None
+    tema: str | None = None
+    estilo: str | None = None
+    paginas: int | None = None
+    extras: str | None = None
+
+
+_convs: dict[str, EstadoConversacion] = {}
+_conv_lock = Lock()
+
+
+class Mensaje(BaseModel):
+    mensaje: str
+
+
+def _iniciar_conv() -> str:
+    return "¿Para qué necesitas este informe?"
+
+
+@app.post("/asistente/{conv_id}")
+async def asistente(conv_id: str, msg: Mensaje):
+    """Conversación paso a paso para recolectar contexto."""
+    with _conv_lock:
+        estado = _convs.get(conv_id)
+        if estado is None:
+            estado = EstadoConversacion()
+            _convs[conv_id] = estado
+            return {"reply": _iniciar_conv()}
+
+        texto = msg.mensaje.strip()
+        if estado.paso == 0:
+            estado.proposito = texto
+            estado.paso = 1
+            return {
+                "reply": "¿Sobre qué tema específico trata el informe?"
+            }
+        if estado.paso == 1:
+            estado.tema = texto
+            estado.paso = 2
+            return {
+                "reply": "¿Qué estilo prefieres (técnico, académico, ejecutivo, etc.)?"
+            }
+        if estado.paso == 2:
+            estado.estilo = texto
+            estado.paso = 3
+            return {"reply": "¿Cuántas páginas deseas? (máximo 30)"}
+        if estado.paso == 3:
+            try:
+                num = int(texto.split()[0])
+            except Exception:
+                return {
+                    "reply": "Indica un número de páginas válido entre 1 y 30."}
+            if num < 1 or num > 30:
+                return {"reply": "El número debe estar entre 1 y 30."}
+            estado.paginas = num
+            estado.paso = 4
+            return {
+                "reply": "¿Hay fuentes, restricciones o tono específico que debamos considerar?"
+            }
+        if estado.paso == 4:
+            estado.extras = texto
+            estado.paso = 5
+            return {"reply": "Contexto completado", "contexto": estado.dict()}
+
+    return {"reply": "Conversación finalizada"}
+
+def generar_contenido(
+    tema: str,
+    tipo: str,
+    proposito: str | None = None,
+    estilo: str | None = None,
+    paginas: int | None = None,
+    extras: str | None = None,
+) -> str:
     """Genera un informe usando LangChain + Ollama."""
     if llm is None:
         raise HTTPException(status_code=500, detail="Modelo Ollama no disponible")
     prompt = (
         f"Redacta un informe profesional en espa\u00f1ol tipo \"{tipo}\" sobre el tema: \"{tema}\". "
-        "Incluye introducci\u00f3n, desarrollo argumental y conclusiones."
+        f"Prop\u00f3sito: {proposito or 'N/A'}. "
+        f"Estilo: {estilo or 'est\u00e1ndar'}. "
+        f"Extensi\u00f3n aproximada: {paginas or '5'} p\u00e1ginas. "
+        "Incluye introducci\u00f3n, desarrollo argumental y conclusiones. "
+        f"Consideraciones adicionales: {extras or 'ninguna'}."
     )
     try:
         return llm(prompt)
@@ -171,6 +252,10 @@ def exportar_a_archivo(contenido: str, formato: str) -> str:
 class GenerarRequest(BaseModel):
     tema: str
     tipo: str
+    proposito: str | None = None
+    estilo: str | None = None
+    paginas: int | None = None
+    extras: str | None = None
 
 
 class ExportarRequest(BaseModel):
@@ -183,12 +268,23 @@ async def generar(req: GenerarRequest):
     if not req.tema:
         raise HTTPException(status_code=400, detail="Tema es requerido")
 
-    contenido = generar_contenido(req.tema, req.tipo)
+    contenido = generar_contenido(
+        req.tema,
+        req.tipo,
+        proposito=req.proposito,
+        estilo=req.estilo,
+        paginas=req.paginas,
+        extras=req.extras,
+    )
     informe = {
         "id": str(uuid4()),
         "tema": req.tema,
         "tipo": req.tipo,
         "contenido": contenido,
+        "proposito": req.proposito,
+        "estilo": req.estilo,
+        "paginas": req.paginas,
+        "extras": req.extras,
         "timestamp": datetime.now().isoformat(),
     }
     historial = cargar_historial()

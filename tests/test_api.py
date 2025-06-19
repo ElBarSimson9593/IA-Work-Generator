@@ -19,8 +19,32 @@ def setup_module(module):
 client = TestClient(bm.app)
 
 
+def test_asistente_flujo():
+    cid = "test_conv"
+    resp = client.post(f"/asistente/{cid}", json={"mensaje": "hola"})
+    assert resp.status_code == 200
+    assert "Para qué" in resp.json()["reply"]
+
+    resp = client.post(f"/asistente/{cid}", json={"mensaje": "Trabajo"})
+    assert "tema" in resp.json()["reply"].lower()
+
+    resp = client.post(f"/asistente/{cid}", json={"mensaje": "IA"})
+    assert "estilo" in resp.json()["reply"].lower()
+
+    resp = client.post(f"/asistente/{cid}", json={"mensaje": "tecnico"})
+    assert "páginas" in resp.json()["reply"].lower() or "paginas" in resp.json()["reply"].lower()
+
+    resp = client.post(f"/asistente/{cid}", json={"mensaje": "5"})
+    assert "fuentes" in resp.json()["reply"].lower()
+
+    resp = client.post(f"/asistente/{cid}", json={"mensaje": "ninguna"})
+    data = resp.json()
+    assert data["reply"] == "Contexto completado"
+    assert data["contexto"]["paginas"] == 5
+
+
 def test_generar(monkeypatch):
-    monkeypatch.setattr(bm, "generar_contenido", lambda t, ty: "contenido")
+    monkeypatch.setattr(bm, "generar_contenido", lambda *a, **k: "contenido")
     resp = client.post("/generar", json={"tema": "x", "tipo": "y"})
     assert resp.status_code == 200
     data = resp.json()
