@@ -43,13 +43,7 @@ export default function MainInterface() {
       if (!resp.ok) throw new Error("Request failed");
       const data = await resp.json();
       console.log("Respuesta del backend:", data);
-      let reply =
-        data?.respuesta ??
-        data?.respuesta_generada ??
-        data?.text ??
-        data?.resultado ??
-        data?.message ??
-        data?.result;
+      let reply = data?.respuesta;
       if (!reply) {
         console.warn("Respuesta vacía o malformada", data);
         reply = "Sin respuesta generada.";
