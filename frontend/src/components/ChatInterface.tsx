@@ -33,9 +33,9 @@ export default function ChatInterface() {
       });
       if (!resp.ok) throw new Error("request failed");
       const data = await resp.json();
-      console.log(data);
+      console.log("DEBUG response:", data);
       let reply: string | undefined =
-        data.respuesta ?? data.message ?? data.text ?? data.result;
+        data.respuesta ?? data.text ?? data.resultado ?? data.message ?? data.result;
       if (!reply) {
         console.warn("Respuesta vacía o malformada", data);
         reply = "Sin respuesta generada.";
