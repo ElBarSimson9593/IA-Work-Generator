@@ -1,134 +1,60 @@
-# IA Work Generator – Generador de Informes con IA Local
+# IA Work Generator — Generador de Informes con IA Local
 
-**IA Work Generator** es una aplicación de escritorio de carácter local, concebida para automatizar la redacción de informes extensos tanto en entornos académicos como empresariales. Su arquitectura está orientada a la eficiencia operativa y la soberanía de los datos, empleando exclusivamente modelos de lenguaje offline, lo que elimina la dependencia de servicios en la nube. Su diseño está optimizado para ejecutarse en hardware modesto, adaptándose dinámicamente a la disponibilidad de GPU para maximizar la velocidad de inferencia sin comprometer la calidad textual.
+IA Work Generator es una aplicación de escritorio autárquica diseñada para orquestar la redacción de informes extensos en contextos académicos y corporativos. El énfasis estratégico gravita en la soberanía de los datos y en la eficiencia operativa: toda la inferencia se ejecuta sobre modelos de lenguaje residentes en el propio equipo, de modo que se erradican las dependencias de servicios en la nube. El motor adapta su consumo de recursos a la disponibilidad de GPU o CPU, priorizando la velocidad de inferencia sin sacrificar la coherencia discursiva.
 
-## Capacidades Estratégicas
+## Propuesta de Valor
 
-El sistema se inicia con una interfaz guiada que permite definir la extensión y profundidad del informe. Un asistente conversacional recoge parámetros clave como el propósito del documento, tono, público objetivo y nivel de formalidad mediante un diálogo controlado. Una vez validado el contexto, la generación se realiza por secciones, simulando visualmente una "escritura en tiempo real" que refuerza la sensación de trazabilidad y control. El usuario puede intervenir en cualquier etapa mediante un editor interactivo enriquecido antes de exportar en formatos profesionales como DOCX o PDF, soportado por Pandoc.
-
-El conocimiento generado se almacena en un historial estructurado, con búsqueda semántica optimizada a través de ChromaDB. La arquitectura modular permite escalar el sistema a nuevas funcionalidades como exportación a presentaciones (.pptx), hojas de cálculo (.xlsx) o cuadros de mando ejecutivos.
+Al iniciar la aplicación, el usuario se enfrenta a un asistente dialógico que define extensión, propósito, tono y audiencia del documento. Confirmado el contexto, la generación avanza sección por sección; la interfaz reproduce la escritura en tiempo real para reforzar la percepción de trazabilidad. En cualquier momento el usuario puede intervenir mediante un editor enriquecido antes de exportar el resultado a DOCX o PDF, operativa soportada por Pandoc. El historial de entregables se conserva en un repositorio estructurado con búsqueda semántica impulsada por ChromaDB, y la arquitectura modular facilita evoluciones como la exportación a presentaciones, hojas de cálculo o cuadros de mando.
 
 ## Sistema de Secciones Inteligente
 
-IA Work Generator incorpora un sistema de identificación jerárquica de contenido que permite segmentar y etiquetar cada componente del informe: títulos, subtítulos y párrafos. Cada sección generada queda registrada con un identificador estructural que vincula su contenido subordinado (por ejemplo, el texto bajo "Introducción") de forma explícita. Esta arquitectura semántica permite al usuario realizar consultas o acciones dirigidas con precisión quirúrgica, tales como "modifica el texto de la introducción", "elimina la conclusión" o "cuántos caracteres tiene el desarrollo".
+Cada componente del informe —títulos, subtítulos y párrafos— se etiqueta con un identificador jerárquico inmutable. Este esquema semántico posibilita operaciones de precisión milimétrica, por ejemplo modificar una introducción concreta, suprimir la conclusión o auditar la longitud de un desarrollo. Un parser jerárquico inspecciona la estructura mientras el usuario edita, habilitando métricas dinámicas, sustituciones contextuales y visualizaciones segmentadas.
 
-El motor de generación, respaldado por un parser jerárquico, analiza la estructura del documento y permite al asistente interactuar con la jerarquía del texto en tiempo real. Esto habilita funcionalidades avanzadas como recuento de secciones, evaluación de longitud por área temática, reemplazo contextual selectivo y visualización estructurada para su edición individual o masiva.
+## Pila Tecnológica
 
-## Tecnologías Empleadas
-
-El frontend utiliza Tauri, React, TailwindCSS y ShadCN UI, proporcionando una interfaz ligera y moderna. El backend se basa en FastAPI, con orquestación de modelos mediante LangChain. Ollama gestiona la ejecución eficiente de los modelos LLM locales y ChromaDB ofrece las capacidades de indexación semántica.
+El frontend, construido con Tauri, React, TailwindCSS y ShadCN UI, ofrece una interfaz ligera y responsiva. El backend, en FastAPI, delega la orquestación de modelos locales a LangChain, mientras que Ollama gestiona la carga eficiente de LLM cuantizados o de precisión completa. ChromaDB provee indexación semántica de alta velocidad. Todo el ecosistema opera desconectado de internet, manteniendo la integridad de la propiedad intelectual.
 
 ## Inteligencia Adaptativa
 
-En ausencia de GPU, el sistema recurre a modelos cuantizados como Mistral o Mixtral, gestionando la generación por bloques para minimizar el uso de recursos. Si detecta una GPU (CUDA o Metal), activa la aceleración por hardware, mejorando notablemente los tiempos de inferencia sin comprometer la coherencia narrativa.
+En ausencia de GPU, la aplicación recurre de forma transparente a modelos cuantizados como Mistral o Mixtral y fragmenta la generación en bloques para contener el consumo de memoria. Si detecta una GPU compatible con CUDA o Metal, activa la aceleración por hardware y comprime los tiempos de respuesta manteniendo la cohesión argumental.
 
 ## Arquitectura Modular
 
-El proyecto se organiza en componentes independientes que facilitan su mantenimiento y extensión:
+El proyecto se distribuye en un frontend responsable de la experiencia de usuario, un backend que expone la API REST y la lógica de generación, un conjunto de plantillas parametrizables, un almacén de configuraciones y un historial local que preserva tanto los documentos finales como sus metadatos. La documentación interna de los agentes lógicos reside en `agents.md`, mientras que los parámetros persistentes del sistema se ubican en `config/config.yaml`.
 
-* **frontend/**: Interfaz de usuario.
-* **backend/**: Lógica central como API REST.
-* **resources/**: Plantillas editables.
-* **config/**: Configuraciones del sistema.
-* **historial.json**: Repositorio local con metadatos.
-* **agents.md**: Documentación interna de agentes lógicos.
+## Experiencia de Usuario
 
-## Flujo de Usuario
+El recorrido típico comienza con el asistente contextual, continúa con la redacción animada por secciones, pasa a la fase de edición interactiva y culmina con la exportación del documento y su inscripción automática en el historial. Todo el flujo se ejecuta sin fricciones y con pleno control por parte del usuario final.
 
-1. **Asistente de contexto**: Recoge información clave y propone estructura.
-2. **Generación animada**: Redacción progresiva por secciones.
-3. **Editor interactivo**: Revisión y ajustes.
-4. **Exportación y registro**: Guardado con metadatos.
+## Despliegue
 
-## Esquemas Funcionales
+Antes de compilar, asegúrese de disponer de Ollama y Pandoc en el sistema anfitrión. El backend requiere un entorno virtual de Python y las dependencias especificadas en `backend/requirements.txt`. Una vez instaladas, lance `backend/main.py`. El frontend se inicia desde la carpeta `frontend` mediante `npm install` y `npm run dev`. Para distribución, ejecute las pruebas con `pytest`, compile el backend con `sh backend/build.sh` y empaquete la aplicación de escritorio vía `npm run tauri build`.
 
-### Flujo de Usuario
-
-Inicio de aplicación ↓ Asistente de contexto ↓ Generación por secciones ↓ Editor interactivo ↓ Exportación ↓ Registro en historial
-
-### Arquitectura Técnica
-
-Frontend (Tauri/React) ↔ Backend (FastAPI/LangChain/Ollama) → Pandoc/Sistema de Archivos
-
-### Módulos Lógicos
-
-Agente de Contexto → Generador de Texto → Editor Interactivo → Exportador de Documento
-↑                                         ↓                            ↓
-Motor Semántico (Chroma) ← Historial Persistente   Plantillas y Configuración
-
-## Instrucciones de Despliegue
-
-### Backend
+### Pasos rápidos (shell)
 
 ```bash
-ollama run mixtral
+# Modelos
+ollama pull mixtral          # recomendado
+ollama pull mistral          # alternativa para hardware limitado
 ollama serve &
-ollama pull mixtral  # en caso de error
-ollama pull mistral  # para equipos con pocos recursos
-```
 
-Modificar `config/config.yaml` si se usa Mistral. Luego:
-
-```bash
+# Backend
 python -m venv venv
-source venv/bin/activate  # o venv\Scripts\activate en Windows
+source venv/bin/activate      # en Windows use venv\Scripts\activate
 pip install -r backend/requirements.txt
 pip install -U langchain-community sentence-transformers
-```
-
-Instalar Pandoc:
-
-```bash
-sudo apt-get install pandoc  # Linux
-brew install pandoc          # macOS
-```
-
-Ejecutar backend:
-
-```bash
 python backend/main.py
-```
 
-### Frontend
-
-```bash
+# Frontend
 cd frontend
 npm install
 npm run dev
 ```
 
-## Pruebas y Distribución
+## Hoja de Ruta
 
-Ejecución de pruebas:
-
-```bash
-pytest
-```
-
-Compilación y empaquetado:
-
-```bash
-sh backend/build.sh
-npm run tauri build
-```
-
-### Nuevos Endpoints
-
-El backend expone dos rutas adicionales para la interfaz principal:
-
-- `POST /conversar` – analiza el mensaje del usuario y responde indicando si se
-  debe iniciar la generación (`iniciar_generacion: true`). Opcionalmente devuelve
-  un contexto deducido con tema, estilo, idioma o número de páginas.
-- `POST /generar_informe` – recibe dicho contexto y envía el contenido del
-  informe sección por sección mediante una `StreamingResponse`.
-
-La aplicación React detecta el flag de generación y abre de forma automática un
-panel lateral con animación de escritura en tiempo real.
-
-## Perspectiva de Evolución
-
-Se prevé la personalización completa de plantillas, exportación a .pptx y .xlsx, integración con Power BI, soporte multilingüe y adaptación a sectores como ingeniería, medicina o derecho. Asimismo, se contempla un backend totalmente autónomo sin dependencias externas.
+Las próximas iteraciones contemplan plantillas personalizables, exportación a .pptx y .xlsx, integración nativa con Power BI, localización multilingüe y ajustes sectoriales para ingeniería, medicina y derecho. También se proyecta un backend plenamente autónomo, sin dependencias externas, para fortalecer la resiliencia operativa.
 
 ## Licencia
 
-MIT – Uso libre con atribución al autor original.
+MIT. Uso libre con atribución al autor.
