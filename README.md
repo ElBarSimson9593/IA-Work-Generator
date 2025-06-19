@@ -4,16 +4,16 @@
 
 ## Características principales
 
-- Generación de informes de hasta 30 páginas mediante IA local (sin conexión a internet).
-- El usuario selecciona el número de páginas deseado desde la interfaz.
-- Asistente conversacional previo que recopila contexto e intención del informe.
-- IA curiosa que hace preguntas profundas: estilo, objetivo, extensión, público, etc.
-- Redacción visible en tiempo real con animación de escritura progresiva.
-- Edición directa del contenido generado desde un panel interactivo antes de exportar.
-- Exportación profesional a DOCX y PDF usando Pandoc.
-- Historial persistente y búsqueda semántica con ChromaDB.
-- Estructura modular preparada para exportación futura a .pptx, .xlsx, Power BI.
-- Interfaz moderna basada en Tauri + React + TailwindCSS + ShadCN UI.
+* Generación de informes de hasta 30 páginas mediante IA local (sin conexión a internet).
+* El usuario selecciona el número de páginas deseado desde la interfaz.
+* Asistente conversacional previo que recopila contexto e intención del informe.
+* IA curiosa que hace preguntas profundas: estilo, objetivo, extensión, público, etc.
+* Redacción visible en tiempo real con animación de escritura progresiva.
+* Edición directa del contenido generado desde un panel interactivo antes de exportar.
+* Exportación profesional a DOCX y PDF usando Pandoc.
+* Historial persistente y búsqueda semántica con ChromaDB.
+* Estructura modular preparada para exportación futura a .pptx, .xlsx, Power BI.
+* Interfaz moderna basada en Tauri + React + TailwindCSS + ShadCN UI.
 
 ---
 
@@ -22,24 +22,50 @@
 IA Work Generator está diseñado para adaptarse automáticamente a las capacidades del equipo:
 
 **En PCs de gama baja (≥ 4 GB de RAM, sin GPU):**
-- Uso de modelos cuantizados (como `mistral`, `mixtral`) mediante Ollama.
-- Generación secuencial y por secciones, evitando picos de carga.
-- Opción de "modo ahorro": proceso más lento, pero con bajo consumo de CPU y RAM.
+
+* Uso de modelos cuantizados (como `mistral`, `mixtral`) mediante Ollama.
+* Generación secuencial y por secciones, evitando picos de carga.
+* Opción de "modo ahorro": proceso más lento, pero con bajo consumo de CPU y RAM.
 
 **En equipos con GPU disponible:**
-- El sistema puede aprovechar la aceleración por hardware (si Ollama está configurado con soporte CUDA/Metal).
-- Esto permite una generación significativamente más rápida, útil para documentos largos o múltiples informes en serie.
+
+* El sistema puede aprovechar la aceleración por hardware (si Ollama está configurado con soporte CUDA/Metal).
+* Esto permite una generación significativamente más rápida, útil para documentos largos o múltiples informes en serie.
 
 ---
 
 ## Estructura del proyecto
 
-- `frontend/` – Aplicación de escritorio: Tauri + React + TailwindCSS + ShadCN UI.
-- `backend/` – API en Python: FastAPI + LangChain + Ollama.
-- `resources/` – Plantillas para exportación (`template.docx`, `template.css`).
-- `config/` – Parámetros globales (`config.yaml`) para modelo, carpeta y estilo.
-- `historial.json` – Almacén de informes generados.
-- `agents.md` – Documentación técnica de los agentes inteligentes.
+* `frontend/` – Aplicación de escritorio: Tauri + React + TailwindCSS + ShadCN UI.
+* `backend/` – API en Python: FastAPI + LangChain + Ollama.
+* `resources/` – Plantillas para exportación (`template.docx`, `template.css`).
+* `config/` – Parámetros globales (`config.yaml`) para modelo, carpeta y estilo.
+* `historial.json` – Almacén de informes generados.
+* `agents.md` – Documentación técnica de los agentes inteligentes.
+
+---
+
+## Diagrama de flujo de interacción
+
+```text
+[Inicio de la aplicación]
+        ↓
+[Chat con IA curiosa]
+  (recopila tema, objetivo, estilo, número de páginas)
+        ↓
+[Confirmación de parámetros por el usuario]
+        ↓
+[Generación progresiva del informe]
+  (secciones: introducción, desarrollo, conclusión)
+        ↓
+[Vista en tiempo real + Edición manual]
+        ↓
+[Exportación a DOCX o PDF]
+        ↓
+[Almacenamiento en historial + Búsqueda semántica opcional]
+```
+
+Este flujo puede ser ampliado o automatizado en futuras versiones mediante orquestación entre agentes.
 
 ---
 
@@ -52,7 +78,7 @@ IA Work Generator está diseñado para adaptarse automáticamente a las capacida
 ```bash
 ollama run mixtral
 ollama serve &
-````
+```
 
 > Si aparece `OllamaEndpointNotFoundError`, ejecuta:
 
@@ -101,12 +127,6 @@ python backend/main.py
 El backend se expone en: `http://127.0.0.1:8000`.
 
 CORS habilitado para: `http://127.0.0.1:1420` y `http://localhost:1420`.
-
-### Endpoints relevantes
-
-- `POST /asistente/{id}` – Conversación paso a paso. Envía `{ "mensaje": "texto" }` para
-  avanzar y obtener el contexto requerido antes de generar el informe.
-- `POST /generar` – Genera el informe con los datos recopilados.
 
 ---
 
@@ -195,5 +215,3 @@ npm run tauri build
 ## Licencia
 
 MIT – Libre uso, modificación y distribución con atribución.
-
-```
