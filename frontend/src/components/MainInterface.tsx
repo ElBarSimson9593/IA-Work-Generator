@@ -42,7 +42,14 @@ export default function MainInterface() {
       });
       if (!resp.ok) throw new Error("Request failed");
       const data = await resp.json();
-      setMessages((p) => [...p, { role: "bot", text: data.respuesta }]);
+      console.log(data);
+      let reply: string | undefined =
+        data.respuesta ?? data.message ?? data.text ?? data.result;
+      if (!reply) {
+        console.warn("Respuesta vacía o malformada", data);
+        reply = "Sin respuesta generada.";
+      }
+      setMessages((p) => [...p, { role: "bot", text: reply }]);
       if (data.iniciar_generacion) {
         setShowGen(true);
         setGenerating(true);
