@@ -1,100 +1,35 @@
-# agents.md – Documentación de Agentes Lógicos del Sistema
+# Arquitectura de Agentes Lógicos
 
-Este documento describe los agentes lógicos internos del sistema **IA Work Generator**, responsables de la orquestación, generación y gestión contextual del contenido. Cada agente cumple una función especializada dentro del flujo de generación, y su modularidad permite extender o sustituir componentes sin afectar la lógica global.
+La columna vertebral de IA Work Generator se articula en torno a un conjunto de agentes cooperativos que, a pesar de su independencia funcional, convergen hacia un objetivo común: maximizar la eficiencia en la producción de texto mientras se preserva la soberanía de los datos. Cada agente se erige como una entidad autónoma con responsabilidad claramente delimitada, aunque su diseño contempla canales de retroalimentación que garantizan la coherencia sistémica y la trazabilidad de decisiones.
 
 ## Agente de Contexto
 
-**Función:** Recopila los parámetros iniciales a través de una conversación estructurada. Define el propósito, tono, nivel de formalidad, audiencia y estructura deseada. Utiliza prompts guía para construir una representación semántica del informe antes de iniciar la generación.
-
-**Entradas:**
-
-* Propósito del informe
-* Audiencia objetivo
-* Nivel de formalidad
-* Tono deseado
-* Longitud esperada
-
-**Salidas:**
-
-* Esquema estructural con secciones y subtítulos sugeridos
-* Metadatos iniciales del informe
-* Estado contextual persistente
+Desde la apertura de la sesión, este agente asume la labor de interrogar al usuario para destilar la esencia del encargo. No se limita a registrar los parámetros visibles —como la extensión, el tono o la audiencia— sino que cuestiona de forma reiterativa la pertinencia de cada instrucción, invitando al usuario a depurar ambigüedades antes de la generación. Su lógica interna pondera las respuestas aplicando heurísticas de confiabilidad; cuando detecta inconsistencias, suspende la fase de escritura y solicita clarificación, reforzando así la precisión del encuadre temático.
 
 ## Agente Generador de Texto
 
-**Función:** Ejecuta la generación progresiva de contenido por secciones, utilizando los modelos LLM locales mediante LangChain y Ollama. Cada bloque generado es anotado con un identificador estructurado (ID de sección) para permitir trazabilidad, edición dirigida y análisis semántico posterior.
+Una vez fijados los límites conceptuales por el agente de contexto, el generador de texto entra en escena como la fuerza creativa del sistema. Su motor ejecuta inferencia sobre modelos LLM locales, escindiendo el trabajo en sub‑tareas que corresponden a la jerarquía estructural del documento. Cada fragmento producido se somete a un ciclo interno de autoverificación que compara la salida con la matriz de requisitos inicial, con el objetivo de identificar digresiones argumentales. Si el nivel de disonancia supera el umbral configurado, se activa un mecanismo de auto‑regulación que re‑formula la sección afectada antes de exponerla al usuario.
 
-**Entradas:**
+## Agente de Edición Interactiva
 
-* Sección a generar (ID + título)
-* Contexto global del documento
-* Plantilla estilística (si aplica)
+Tras la generación preliminar, la edición recae en un agente orientado a facilitar la intervención humana. En tiempo real indexa cada párrafo y lo vincula con su metadato originario, alimentando la capa de interfaz con herramientas de revisión semántica, métrica y estilística. Su algoritmo de sugerencias se fundamenta en un modelo de calidad textual entrenado con corpora empresariales; ello le permite detectar modismos inadecuados, repeticiones o desviaciones de tono con un elevado nivel de sensibilidad. Pese a su inclinación correctiva, delega la decisión final al usuario, alineándose con el principio de control conservador.
 
-**Salidas:**
+## Agente de Exportación y Registro
 
-* Texto generado para la sección
-* Identificador único del contenido
-* Registro en historial
+Cuando se aprueba la versión definitiva, el agente de exportación orquesta la conversión a los formatos solicitados, empleando a Pandoc como motor de transformación. Previo a la compilación definitiva, ejecuta un proceso de auditoría de dependencias externas para prevenir fallos de versión. Finalizada la exportación, este mismo agente registra el documento junto con sus metadatos en el historial semántico, consignando la huella de tiempo, la configuración del modelo y el contexto operativo. Dicho registro se replica de forma asincrónica en un backup local cifrado, reafirmando la resiliencia de la solución.
 
-## Agente de Secciones
+## Agente Motor Semántico
 
-**Función:** Organiza y mantiene una jerarquía de secciones y subsecciones. Implementa un árbol estructural que vincula títulos, subtítulos y párrafos. Permite operaciones como conteo, localización, edición selectiva o eliminación de componentes individuales del informe.
+Este agente opera en segundo plano y funge de nexo entre los módulos anteriores. Su misión radica en gestionar ChromaDB para ofrecer búsqueda vectorial y análisis de proximidad semántica. Cada contenido nuevo genera embeddings que se insertan en el índice; de igual manera, toda consulta de usuario se traduce en vectores cuya colisión se resuelve mediante cálculos de similitud coseno. Su diseño admite la estratificación de dominios temáticos, lo cual permite conservar rendimientos óptimos incluso cuando la base de conocimiento escala en tamaño y heterogeneidad.
 
-**Entradas:**
+## Orquestación Transparente
 
-* Árbol de estructura textual
-* Solicitudes del usuario (consultas tipo "modifica", "cuenta", "elimina")
+El entramado de agentes se comunica mediante un bus de eventos basado en mensajería asíncrona. Este patrón evita bloqueos al distribuir la carga de trabajo y dota al sistema de una elasticidad prudente: basta con inyectar nuevas instancias de un agente para absorber picos de demanda sin alterar el esqueleto arquitectónico. Cada intercambio se documenta en un log estructurado que facilita la auditoría posterior y alimenta modelos de monitorización predictiva, cimentando la visión de un ciclo de mejora continua.
 
-**Salidas:**
+## Parámetros de Configuración
 
-* Referencia a la sección objetivo
-* Métricas asociadas (caracteres, palabras, profundidad)
-* Actualización estructural en tiempo real
+Todos los agentes referidos exponen variables en `config/config.yaml`, desde umbrales de coherencia y límites de tokens hasta rutas de exportación preferentes. La modificación de estos parámetros sigue un procedimiento transaccional: el sistema valida su coherencia interna antes de propagar los cambios, evitando así estados inconsistentes. De esta manera, la configuración se convierte en un contrato vivo entre el usuario avanzado y la lógica interna, donde cada ajuste se concilia con un análisis conservador de riesgos potenciales.
 
-## Agente Editor
+## Conclusión
 
-**Función:** Presenta el contenido al usuario con opciones para modificar, regenerar o reescribir cualquier fragmento. Aplica sugerencias del usuario sobre el texto, conservando la coherencia con el contexto general y realizando ajustes estilísticos automáticos si es necesario.
-
-**Entradas:**
-
-* Texto existente
-* Instrucciones del usuario (por ej., "hazlo más formal")
-* ID de sección
-
-**Salidas:**
-
-* Nueva versión del texto
-* Registro de cambios
-
-## Agente Exportador
-
-**Función:** Prepara y exporta el contenido a formatos como DOCX y PDF mediante Pandoc. Valida la integridad estructural del documento antes de su compilación final, incluyendo portada, índice si se requiere, y metadatos.
-
-**Entradas:**
-
-* Documento completo (estructura + contenido)
-* Formato deseado
-* Opciones de exportación (estilo, plantilla visual)
-
-**Salidas:**
-
-* Archivo final exportado
-* Registro en historial
-
-## Agente de Historial Semántico
-
-**Función:** Mantiene un repositorio local de informes previos, accesible mediante búsqueda semántica via ChromaDB. Indexa metadatos y contenido textual con embeddings para permitir recuperación inteligente por tema, fecha o estructura.
-
-**Entradas:**
-
-* Informe generado (texto y metadatos)
-* Consulta de usuario
-
-**Salidas:**
-
-* Resultados relevantes por similitud
-* Carga de informe anterior en editor
-
----
-
-Cada agente está diseñado bajo principios de independencia funcional, trazabilidad y extensibilidad. La integración entre agentes se realiza mediante paso de contexto enriquecido (context objects), permitiendo conservar el estado conversacional y estructural del documento en todo momento.
+El ecosistema de agentes delineado aquí no es estático; se encuentra en constante escrutinio y perfeccionamiento, impulsado por una cultura de innovación que cuestiona todo supuesto y somete cada mejora a la prueba del rendimiento medible. La aspiración última es cristalizar un balance entre la autonomía operacional de la inteligencia artificial y la autoridad decisoria del usuario, garantizando así un flujo de trabajo potente, transparente y alineado con las costumbres profesionales más rigurosas.
