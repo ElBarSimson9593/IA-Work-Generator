@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import ReactMarkdown from "react-markdown";
-import { Contexto } from "./Chat";
+import { Contexto } from "./ChatBot";
 
 interface Props {
   ctx: Contexto & { tipo: string };
