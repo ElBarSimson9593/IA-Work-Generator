@@ -33,8 +33,13 @@ export default function ChatInterface() {
       });
       if (!resp.ok) throw new Error("request failed");
       const data = await resp.json();
-      const reply: string =
-        data.respuesta ?? data.reply ?? data.result ?? "Sin respuesta.";
+      console.log(data);
+      let reply: string | undefined =
+        data.respuesta ?? data.message ?? data.text ?? data.result;
+      if (!reply) {
+        console.warn("Respuesta vacía o malformada", data);
+        reply = "Sin respuesta generada.";
+      }
       setMessages((p) => [...p, { role: "bot", text: reply, id: Date.now() }]);
     } catch (err) {
       setMessages((p) => [
