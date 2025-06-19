@@ -26,6 +26,13 @@ def test_generar(monkeypatch):
     assert "contenido" in data
 
 
+def test_generar_sin_llm(monkeypatch):
+    monkeypatch.setattr(bm, "llm", None)
+    resp = client.post("/generar", json={"tema": "x", "tipo": "y"})
+    assert resp.status_code == 500
+    assert resp.json()["detail"] == "Modelo Ollama no disponible"
+
+
 def test_exportar(monkeypatch, tmp_path):
     file = tmp_path / "tmp.docx"
     monkeypatch.setattr(bm, "exportar_a_archivo", lambda c, f: str(file))
