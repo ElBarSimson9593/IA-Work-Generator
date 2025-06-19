@@ -136,6 +136,7 @@ class EstadoConversacion(BaseModel):
     estilo: str | None = None
     paginas: int | None = None
     extras: str | None = None
+    estructura: str | None = None
 
 
 _convs: dict[str, EstadoConversacion] = {}
@@ -147,7 +148,7 @@ class Mensaje(BaseModel):
 
 
 def _iniciar_conv() -> str:
-    return "¿Para qué necesitas este informe?"
+    return "Hola, soy tu asistente IA. ¿Para qué necesitas este informe?"
 
 
 @app.post("/asistente/{conv_id}")
@@ -192,10 +193,56 @@ async def asistente(conv_id: str, msg: Mensaje):
             }
         if estado.paso == 4:
             estado.extras = texto
+            estado.estructura = generar_estructura(
+                estado.tema or "",
+                "Informe",
+                proposito=estado.proposito,
+                estilo=estado.estilo,
+                paginas=estado.paginas,
+                extras=estado.extras,
+            )
             estado.paso = 5
-            return {"reply": "Contexto completado", "contexto": estado.dict()}
+            return {
+                "reply": estado.estructura
+                + "\n¿Te parece bien esta estructura? (sí/no)",
+                "estructura": estado.estructura,
+            }
+        if estado.paso == 5:
+            if texto.lower().startswith("s"):
+                estado.paso = 6
+                return {"reply": "Contexto completado", "contexto": estado.dict()}
+            else:
+                estado.paso = 4
+                return {"reply": "Indica los ajustes que deseas realizar"}
 
     return {"reply": "Conversación finalizada"}
+
+def generar_estructura(
+    tema: str,
+    tipo: str,
+    proposito: str | None = None,
+    estilo: str | None = None,
+    paginas: int | None = None,
+    extras: str | None = None,
+) -> str:
+    """Genera la estructura del informe."""
+    if llm is None:
+        raise HTTPException(status_code=500, detail="Modelo Ollama no disponible")
+    prompt = (
+        f"Propón una estructura de informe en español tipo \"{tipo}\" sobre \"{tema}\". "
+        f"Propósito: {proposito or 'N/A'}. Estilo: {estilo or 'estándar'}. "
+        f"Extensión aproximada: {paginas or '5'} páginas. "
+        f"Consideraciones: {extras or 'ninguna'}. "
+        "Devuelve solo los títulos de las secciones con una breve descripción de cada una."
+    )
+    try:
+        return llm(prompt)
+    except OllamaEndpointNotFoundError as exc:
+        raise HTTPException(
+            status_code=500,
+            detail="Modelo Mixtral no encontrado. Ejecute `ollama pull mixtral`",
+        ) from exc
+
 
 def generar_contenido(
     tema: str,
