@@ -393,6 +393,7 @@ async def generar_informe(req: GenerarInformeRequest):
             for ch in sec:
                 yield ch
                 await asyncio.sleep(0.02)
+        yield "\n" + json.dumps({"finalizado": True})
 
     return StreamingResponse(gen(), media_type="text/plain")
 

@@ -74,12 +74,22 @@ export default function MainInterface() {
     const reader = resp.body.getReader();
     const decoder = new TextDecoder();
     let all = "";
+    let buffer = "";
     while (true) {
       const { value, done } = await reader.read();
       if (done) break;
       const chunk = decoder.decode(value);
-      all += chunk;
-      setDisplay(all);
+      buffer += chunk;
+      const idx = buffer.indexOf('{"finalizado": true}');
+      if (idx !== -1) {
+        all += buffer.slice(0, idx);
+        setDisplay(all);
+        break;
+      } else {
+        all += buffer;
+        setDisplay(all);
+        buffer = "";
+      }
     }
     setEditable(all);
     setGenerating(false);
@@ -99,8 +109,14 @@ export default function MainInterface() {
   }, [editable, generating]);
 
   return (
-    <div className={`h-screen ${showGen ? "flex" : "flex-col"}`}>
-      <div className={showGen ? "w-1/2 flex flex-col" : "flex-1 flex flex-col"}>
+    <div className={`h-screen transition-all ${showGen ? "flex" : "flex-col"}`}>
+      <div
+        className={
+          showGen
+            ? "w-1/2 flex flex-col transition-all duration-300"
+            : "flex-1 flex flex-col transition-all duration-300"
+        }
+      >
         <div className="flex-1 overflow-y-auto p-2 space-y-2">
           {messages.map((m, i) => (
             <div
@@ -142,7 +158,7 @@ export default function MainInterface() {
         </div>
       </div>
       {showGen && (
-        <div className="w-1/2 flex flex-col border-l">
+        <div className="w-1/2 flex flex-col border-l transition-all duration-300">
           <div className="flex-1 p-2 overflow-y-auto">
             {generating ? (
               <pre className="whitespace-pre-wrap text-sm">{display}</pre>
