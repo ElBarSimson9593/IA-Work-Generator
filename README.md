@@ -45,7 +45,33 @@ IA Work Generator está diseñado para adaptarse automáticamente a las capacida
 
 ---
 
-## Diagrama de flujo de interacción
+## Interfaz y navegación
+
+La aplicación está dividida en cuatro vistas principales, conectadas secuencialmente:
+
+1. **Asistente de contexto** – Vista de chat (componente conversacional con flujo tipo wizard). Botón: "Confirmar parámetros".
+2. **Redacción del informe** – Vista de generación animada en tiempo real, por secciones. Botón: "Ir al editor".
+3. **Editor del informe** – Panel de edición del contenido markdown generado. Botones: "Guardar", "Regenerar", "Ir a exportar".
+4. **Exportación** – Selector de formato y botón "Exportar informe".
+
+El usuario solo puede avanzar de una etapa a otra tras completar la actual. Los botones de avance están deshabilitados hasta cumplir condiciones mínimas (ej. contexto válido o generación terminada).
+
+## Componentes UI clave
+
+| Función              | Componente sugerido (ShadCN)       |
+| -------------------- | ---------------------------------- |
+| Entrada de chat      | `Textarea`, `Button`               |
+| Flujo conversacional | `Stepper`, `Form`, validación UX   |
+| Vista de generación  | `Progress`, `Card`, `Badge`        |
+| Editor de texto      | `Textarea`, `Tabs`, `Toolbar`      |
+| Exportar informe     | `Select`, `Button`, `AlertDialog`  |
+| Historial            | `Table`, `SearchInput`, `Dropdown` |
+
+---
+
+## Diagramas funcionales
+
+### Diagrama de flujo de interacción
 
 ```text
 [Inicio de la aplicación]
@@ -65,7 +91,25 @@ IA Work Generator está diseñado para adaptarse automáticamente a las capacida
 [Almacenamiento en historial + Búsqueda semántica opcional]
 ```
 
-Este flujo puede ser ampliado o automatizado en futuras versiones mediante orquestación entre agentes.
+### Diagrama de componentes del sistema
+
+```text
++----------------------+     REST API     +----------------------+    File Export   +----------------------+
+|  Frontend (Tauri)    | <--------------> |   Backend (FastAPI)   |  ------------->  |  Pandoc / FileSystem |
+| - React UI           |                  | - LangChain + Ollama |                  | - DOCX / PDF         |
+| - Chat & Editor      |                  | - ChromaDB, NLP       |                  |                      |
++----------------------+                  +----------------------+                  +----------------------+
+```
+
+### Diagrama de agentes
+
+```text
+[Asistente Curioso] ---> [Generador de Contenido] ---> [Editor Interactivo] ---> [Exportador de Documentos]
+                                ↑                             ↓                           ↓
+                        [Buscador Semántico]  <----------  [Historial]               [Plantillas / Config]
+```
+
+Estos diagramas resumen cómo fluyen los datos y cómo se estructuran los módulos internos y agentes.
 
 ---
 
@@ -185,19 +229,6 @@ Para empaquetar el frontend con Tauri:
 ```bash
 npm run tauri build
 ```
-
----
-
-## Estado actual del desarrollo
-
-* ✅ Generación de informes y exportación DOCX/PDF
-* ✅ Asistente conversacional previo con IA curiosa
-* ✅ Panel de edición y animación de escritura
-* ✅ Historial y búsqueda semántica (ChromaDB)
-* ✅ Compatible con CPU y GPU
-* ⚠️ `resources/` y `config/` parcialmente integrados
-* ⚠️ Pruebas automatizadas básicas
-* ⚠️ Empaquetado final en revisión multiplataforma
 
 ---
 
