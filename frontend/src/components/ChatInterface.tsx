@@ -33,14 +33,14 @@ export default function ChatInterface() {
       });
       if (!resp.ok) throw new Error("request failed");
       const data = await resp.json();
-      console.log("DEBUG response:", data);
-      let reply: string | undefined =
-        data.respuesta ??
-        data.respuesta_generada ??
-        data.text ??
-        data.resultado ??
-        data.message ??
-        data.result;
+      console.log("Respuesta del backend:", data);
+      let reply =
+        data?.respuesta ??
+        data?.respuesta_generada ??
+        data?.text ??
+        data?.resultado ??
+        data?.message ??
+        data?.result;
       if (!reply) {
         console.warn("Respuesta vacía o malformada", data);
         reply = "Sin respuesta generada.";
