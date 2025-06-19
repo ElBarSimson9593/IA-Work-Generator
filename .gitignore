@@ -1,0 +1,10 @@
+# Python
+venv/
+__pycache__/
+
+# Node
+frontend/node_modules/
+
+# Build artifacts
+*.pyc
+frontend/dist/
