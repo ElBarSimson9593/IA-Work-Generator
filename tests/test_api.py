@@ -21,6 +21,11 @@ client = TestClient(bm.app)
 
 def test_asistente_flujo(monkeypatch):
     monkeypatch.setattr(bm, "generar_estructura", lambda *a, **k: "estructura")
+    monkeypatch.setattr(
+        bm,
+        "generar_pregunta",
+        lambda paso, est: bm._PREGUNTAS_PREDETERMINADAS.get(paso, ""),
+    )
     cid = "test_conv"
     resp = client.post(f"/asistente/{cid}", json={"mensaje": "hola"})
     assert resp.status_code == 200
