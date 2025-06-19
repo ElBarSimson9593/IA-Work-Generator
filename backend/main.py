@@ -36,8 +36,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-HIST_PATH = Path(__file__).with_name("historial.json")
-CHROMA_PATH = Path(__file__).with_name("chroma_db")
+REPO_ROOT = Path(__file__).resolve().parents[1]
+HIST_PATH = REPO_ROOT / "historial.json"
+CHROMA_PATH = REPO_ROOT / "chroma_db"
 
 # Cargar configuración global
 CONFIG_PATH = Path(__file__).resolve().parents[1] / "config" / "config.yaml"
