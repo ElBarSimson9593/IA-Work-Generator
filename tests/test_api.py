@@ -119,3 +119,12 @@ def test_conversar_iniciar():
     assert resp.status_code == 200
     payload = resp.json()
     assert payload["iniciar_generacion"] is True
+    assert "error" in payload
+
+
+def test_conversar_sin_llm(monkeypatch):
+    monkeypatch.setattr(bm, "llm", None)
+    resp = client.post("/conversar", json={"mensaje": "hola"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["error"] == "LLM no disponible"
