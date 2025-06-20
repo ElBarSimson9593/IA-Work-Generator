@@ -79,6 +79,7 @@ def _invoke_llm(prompt: str) -> str:
                     text=True,
                     capture_output=True,
                     check=True,
+                    encoding="utf-8",
                 )
                 return proc.stdout
             except Exception as exc:  # pragma: no cover - runtime connectivity issues
