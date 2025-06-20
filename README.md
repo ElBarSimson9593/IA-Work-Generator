@@ -40,6 +40,8 @@ ollama serve &
 # en Windows usa `ollama serve` (o `start "" /B ollama serve`) en su propia consola
 # si aparece el mensaje "Only one usage of each socket address..." quiere decir
 # que otra instancia de `ollama` sigue activa. Mata el proceso anterior y vuelve a intentarlo.
+# Verifica que `config/config.yaml` tenga el mismo nombre de modelo descargado
+# (por defecto `mixtral`).
 
 # Backend
 python -m venv venv
