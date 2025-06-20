@@ -62,9 +62,10 @@ def test_generar(monkeypatch):
 
 def test_generar_sin_llm(monkeypatch):
     monkeypatch.setattr(bm, "llm", None)
+    monkeypatch.setattr(bm.shutil, "which", lambda x: None)
     resp = client.post("/generar", json={"tema": "x", "tipo": "y"})
-    assert resp.status_code == 500
-    assert resp.json()["detail"] == "Modelo Ollama no disponible"
+    assert resp.status_code == 503
+    assert resp.json()["detail"] == "LLM no disponible"
 
 
 def test_generar_modelo_no_encontrado(monkeypatch):
@@ -124,6 +125,7 @@ def test_conversar_iniciar():
 
 def test_conversar_sin_llm(monkeypatch):
     monkeypatch.setattr(bm, "llm", None)
+    monkeypatch.setattr(bm.shutil, "which", lambda x: None)
     resp = client.post("/conversar", json={"mensaje": "hola"})
     assert resp.status_code == 200
     data = resp.json()

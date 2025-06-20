@@ -30,6 +30,7 @@ except Exception:  # pragma: no cover - optional dependency
 import yaml
 from threading import Lock
 import re
+import shutil
 
 
 app = FastAPI(title="Generador de informes IA")
@@ -59,6 +60,18 @@ llm = OllamaLLM(model=MODEL_NAME) if OllamaLLM else None
 def _invoke_llm(prompt: str) -> str:
     """Invoca el modelo compatible con LangChain."""
     if llm is None:
+        if shutil.which("ollama"):
+            try:
+                proc = subprocess.run(
+                    ["ollama", "run", MODEL_NAME],
+                    input=prompt,
+                    text=True,
+                    capture_output=True,
+                    check=True,
+                )
+                return proc.stdout
+            except Exception as exc:  # pragma: no cover - runtime connectivity issues
+                raise HTTPException(status_code=503, detail="LLM no disponible") from exc
         raise HTTPException(status_code=503, detail="LLM no disponible")
     try:
         if hasattr(llm, "invoke"):
@@ -285,8 +298,6 @@ def generar_estructura(
     extras: str | None = None,
 ) -> str:
     """Genera la estructura del informe."""
-    if llm is None:
-        raise HTTPException(status_code=500, detail="Modelo Ollama no disponible")
     prompt = (
         f"Propón una estructura de informe en español tipo \"{tipo}\" sobre \"{tema}\". "
         f"Propósito: {proposito or 'N/A'}. Estilo: {estilo or 'estándar'}. "
@@ -312,8 +323,6 @@ def generar_contenido(
     extras: str | None = None,
 ) -> str:
     """Genera un informe usando LangChain + Ollama."""
-    if llm is None:
-        raise HTTPException(status_code=500, detail="Modelo Ollama no disponible")
     prompt = (
         f"Redacta un informe profesional en espa\u00f1ol tipo \"{tipo}\" sobre el tema: \"{tema}\". "
         f"Prop\u00f3sito: {proposito or 'N/A'}. "
