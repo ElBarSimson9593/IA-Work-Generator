@@ -59,10 +59,15 @@ llm = OllamaLLM(model=MODEL_NAME) if OllamaLLM else None
 def _invoke_llm(prompt: str) -> str:
     """Invoca el modelo compatible con LangChain."""
     if llm is None:
-        raise HTTPException(status_code=500, detail="Modelo Ollama no disponible")
-    if hasattr(llm, "invoke"):
-        return llm.invoke(prompt)
-    return llm(prompt)
+        raise HTTPException(status_code=503, detail="LLM no disponible")
+    try:
+        if hasattr(llm, "invoke"):
+            return llm.invoke(prompt)
+        return llm(prompt)
+    except OllamaEndpointNotFoundError:
+        raise
+    except Exception as exc:  # pragma: no cover - runtime connectivity issues
+        raise HTTPException(status_code=503, detail="LLM no disponible") from exc
 
 EXPORT_DIR = Path(CONFIG.get("export_dir", "exports"))
 EXPORT_DIR.mkdir(parents=True, exist_ok=True)
@@ -560,23 +565,25 @@ async def conversar(req: ConversacionRequest):
         print("Respuesta generada:", texto)
         return {"respuesta": texto}
 
-    if llm is None:
-        respuesta = "[LLM no disponible]"
-    else:
-        try:
-            respuesta = _invoke_llm(prompt)
-        except Exception:
-            respuesta = ""
+    try:
+        respuesta = _invoke_llm(prompt)
+        error = None
+    except HTTPException as exc:
+        respuesta = ""
+        error = exc.detail
     print("Mensaje recibido:", prompt)
     print("Respuesta generada:", respuesta)
 
     start = _should_start(prompt)
     ctx = _infer_context(prompt) if start else None
-    return {
+    payload = {
         "respuesta": respuesta,
         "iniciar_generacion": start,
         "contexto": ctx,
     }
+    if error:
+        payload["error"] = error
+    return payload
 
 
 @app.post("/buscar")
