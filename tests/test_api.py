@@ -14,6 +14,8 @@ def setup_module(module):
         bm.HIST_PATH.unlink()
     bm.EXPORT_DIR = Path("tests/exports")
     bm.EXPORT_DIR.mkdir(parents=True, exist_ok=True)
+    bm.TMP_DIR = Path("tests/tmp")
+    bm.TMP_DIR.mkdir(parents=True, exist_ok=True)
 
 
 client = TestClient(bm.app)
@@ -147,6 +149,26 @@ def test_documento_invalido(tmp_path):
     with file.open("rb") as fh:
         resp = client.post("/documento", files={"file": ("bad.bin", fh, "application/octet-stream")})
     assert resp.status_code == 400
+
+
+def test_generar_docx(monkeypatch):
+    def fake_llm(prompt, session_id="default"):
+        if "título" in prompt.lower():
+            return "Titulo de prueba"
+        if "introducción" in prompt.lower():
+            return "Contenido intro"
+        if "desarrolla" in prompt.lower():
+            return "Contenido desarrollo"
+        if "concluye" in prompt.lower():
+            return "Conclusión breve"
+        return "texto"
+
+    monkeypatch.setattr(bm, "invoke_llm", fake_llm)
+    resp = client.post("/generar-docx", json={"tema": "IA"})
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith(
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    )
 
 
 def test_cambiar_idioma():
