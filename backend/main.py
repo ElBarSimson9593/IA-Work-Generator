@@ -11,6 +11,13 @@ from uuid import uuid4
 from datetime import datetime
 from pathlib import Path
 from pydantic import BaseModel
+import sys
+
+if __name__ == "__main__" and __package__ is None:
+    sys.path.append(str(Path(__file__).resolve().parent))
+    from document_generator import crear_docx
+else:
+    from .document_generator import crear_docx
 try:
     from langchain_ollama import OllamaLLM
 except Exception:  # pragma: no cover - optional dependency
@@ -48,7 +55,6 @@ from threading import Lock
 import re
 import shutil
 import unicodedata
-from .document_generator import crear_docx
 
 
 class Utf8JSONResponse(JSONResponse):
