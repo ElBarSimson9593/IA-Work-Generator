@@ -171,6 +171,26 @@ def test_generar_docx(monkeypatch):
     )
 
 
+def test_conversar_generar_word(monkeypatch):
+    def fake_llm(prompt, session_id="default"):
+        if "título" in prompt.lower():
+            return "Titulo"
+        if "introducción" in prompt.lower():
+            return "Intro"
+        if "desarrolla" in prompt.lower():
+            return "Desarrollo"
+        if "concluye" in prompt.lower():
+            return "Conclusión"
+        return "ok"
+
+    monkeypatch.setattr(bm, "invoke_llm", fake_llm)
+    resp = client.post("/conversar", json={"mensaje": "Genera un Word sobre IA"})
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith(
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    )
+
+
 def test_cambiar_idioma():
     resp = client.post("/config/idioma", json={"idioma": "en"})
     assert resp.status_code == 200
