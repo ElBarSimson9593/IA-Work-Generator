@@ -32,16 +32,23 @@ export default function ChatInterface() {
         body: JSON.stringify({ mensaje: text }),
       });
       if (!resp.ok) throw new Error("request failed");
-      const data = await resp.json();
-      console.log("Respuesta del backend:", data);
-      let reply =
-        data?.respuesta ||
-        data?.reply ||
-        data?.content ||
-        data?.message ||
-        "";
+      const raw = await resp.text();
+      let data: any = null;
+      let reply = "";
+      try {
+        data = JSON.parse(raw);
+        reply =
+          data?.respuesta ||
+          data?.reply ||
+          data?.content ||
+          data?.message ||
+          "";
+      } catch (e) {
+        reply = raw.trim();
+      }
+      console.log("Respuesta del backend:", data || raw);
       if (!reply) {
-        console.warn("Respuesta vacía o malformada", data);
+        console.warn("Respuesta vacía o malformada", data || raw);
         reply = "Sin respuesta generada.";
       }
       setMessages((p) => [...p, { role: "bot", text: reply, id: Date.now() }]);
