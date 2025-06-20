@@ -10,3 +10,4 @@ aiofiles
 sentence-transformers
 httpx
 langchain_ollama
+langdetect

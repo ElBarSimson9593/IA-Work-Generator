@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException, BackgroundTasks
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
 import tempfile
@@ -27,6 +27,10 @@ try:
     from sentence_transformers import SentenceTransformer
 except Exception:  # pragma: no cover - optional dependency
     SentenceTransformer = None
+try:
+    from langdetect import detect
+except Exception:  # pragma: no cover - optional dependency
+    detect = None
 import yaml
 from threading import Lock
 import re
@@ -34,7 +38,13 @@ import shutil
 import unicodedata
 
 
-app = FastAPI(title="Generador de informes IA")
+class Utf8JSONResponse(JSONResponse):
+    """JSONResponse con codificación UTF-8 explícita."""
+
+    media_type = "application/json; charset=utf-8"
+
+
+app = FastAPI(title="Generador de informes IA", default_response_class=Utf8JSONResponse)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://127.0.0.1:1420", "http://localhost:1420"],
@@ -101,9 +111,26 @@ def clean_llm_output(text: str) -> str:
     return text.strip()
 
 
+def detect_language(text: str) -> str:
+    """Devuelve 'en' o 'es' según el idioma detectado."""
+    if not detect:
+        return "es"
+    try:
+        lang = detect(text)
+    except Exception:
+        return "es"
+    return "en" if lang.startswith("en") else "es"
+
+
 def invoke_llm(prompt: str) -> str:
     """Invoca el modelo y limpia la salida."""
-    raw = _invoke_llm(prompt)
+    lang = detect_language(prompt)
+    prefix = (
+        "Responde exclusivamente en español.\n"
+        if lang != "en"
+        else "Respond exclusively in English.\n"
+    )
+    raw = _invoke_llm(prefix + prompt)
     return clean_llm_output(raw)
 
 EXPORT_DIR = Path(CONFIG.get("export_dir", "exports"))
