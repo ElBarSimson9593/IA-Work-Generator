@@ -147,3 +147,19 @@ def test_documento_invalido(tmp_path):
     with file.open("rb") as fh:
         resp = client.post("/documento", files={"file": ("bad.bin", fh, "application/octet-stream")})
     assert resp.status_code == 400
+
+
+def test_cambiar_idioma():
+    resp = client.post("/config/idioma", json={"idioma": "en"})
+    assert resp.status_code == 200
+    assert resp.json()["idioma"] == "en"
+
+
+def test_conversar_cambia_idioma(monkeypatch):
+    monkeypatch.setattr(bm, "_invoke_llm", lambda p: p)
+    resp = client.post("/conversar", json={"mensaje": "cambia el idioma a ingles"})
+    assert resp.status_code == 200
+    assert "Ingl" in resp.json()["respuesta"] or "English" in resp.json()["respuesta"]
+    resp2 = client.post("/conversar", json={"mensaje": "hola"})
+    assert resp2.status_code == 200
+    assert resp2.json()["respuesta"].startswith("Answer in English:")

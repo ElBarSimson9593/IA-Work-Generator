@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File
+from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File, Request
 from fastapi.responses import FileResponse, StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
@@ -76,6 +76,19 @@ if CONFIG_PATH.exists():
 else:
     CONFIG = {}
 
+# Lenguaje por sesión
+_LANG_STORE: dict[str, str] = {"default": CONFIG.get("language", "es")}
+
+
+def get_language(session_id: str = "default") -> str:
+    return _LANG_STORE.get(session_id, CONFIG.get("language", "es"))
+
+
+def set_language(lang_code: str, session_id: str = "default") -> None:
+    if lang_code not in {"es", "en"}:
+        lang_code = "es"
+    _LANG_STORE[session_id] = lang_code
+
 # Instancia global del modelo para reutilizar conexiones
 MODEL_NAME = CONFIG.get("model", "mixtral")
 llm = OllamaLLM(model=MODEL_NAME) if OllamaLLM else None
@@ -135,13 +148,11 @@ def detect_language(text: str) -> str:
     return "en" if lang.startswith("en") else "es"
 
 
-def invoke_llm(prompt: str) -> str:
-    """Invoca el modelo y limpia la salida."""
-    lang = detect_language(prompt)
+def invoke_llm(prompt: str, session_id: str = "default") -> str:
+    """Invoca el modelo y limpia la salida respetando el idioma activo."""
+    lang = get_language(session_id)
     prefix = (
-        "Responde exclusivamente en español.\n"
-        if lang != "en"
-        else "Respond exclusively in English.\n"
+        "Responde en español:\n" if lang == "es" else "Answer in English:\n"
     )
     raw = _invoke_llm(prefix + prompt)
     return clean_llm_output(raw)
@@ -248,6 +259,10 @@ class ConversacionRequest(BaseModel):
     modo: str | None = None
 
 
+class IdiomaRequest(BaseModel):
+    idioma: str
+
+
 def _iniciar_conv() -> str:
     return "Hola, soy tu asistente IA. ¿Para qué necesitas este informe?"
 
@@ -296,7 +311,7 @@ def generar_pregunta(paso: int, estado: EstadoConversacion) -> str:
 
 
 @app.post("/asistente/{conv_id}")
-async def asistente(conv_id: str, msg: Mensaje):
+async def asistente(conv_id: str, msg: Mensaje, request: Request):
     """Conversación paso a paso para recolectar contexto."""
     with _conv_lock:
         estado = _convs.get(conv_id)
@@ -338,6 +353,7 @@ async def asistente(conv_id: str, msg: Mensaje):
                 estilo=estado.estilo,
                 paginas=estado.paginas,
                 extras=estado.extras,
+                session_id=request.headers.get("X-Session-Id", "default"),
             )
             estado.paso = 5
             return {
@@ -362,6 +378,7 @@ def generar_estructura(
     estilo: str | None = None,
     paginas: int | None = None,
     extras: str | None = None,
+    session_id: str = "default",
 ) -> str:
     """Genera la estructura del informe."""
     prompt = (
@@ -372,7 +389,7 @@ def generar_estructura(
         "Devuelve solo los títulos de las secciones con una breve descripción de cada una."
     )
     try:
-        return invoke_llm(prompt)
+        return invoke_llm(prompt, session_id=session_id)
     except OllamaEndpointNotFoundError as exc:
         raise HTTPException(
             status_code=500,
@@ -388,6 +405,7 @@ def generar_contenido(
     paginas: int | None = None,
     extras: str | None = None,
     contexto: str | None = None,
+    session_id: str = "default",
 ) -> str:
     """Genera un informe usando LangChain + Ollama."""
     prompt = (
@@ -401,7 +419,7 @@ def generar_contenido(
     if contexto:
         prompt += "\nUtiliza la siguiente informaci\u00f3n como referencia:\n" + contexto
     try:
-        return invoke_llm(prompt)
+        return invoke_llm(prompt, session_id=session_id)
     except OllamaEndpointNotFoundError as exc:
         raise HTTPException(
             status_code=500,
@@ -522,11 +540,12 @@ async def generar_informe(req: GenerarInformeRequest):
     return StreamingResponse(gen(), media_type="text/plain; charset=utf-8")
 
 @app.post("/generar")
-async def generar(req: GenerarRequest):
+async def generar(req: GenerarRequest, request: Request):
     """Genera un informe real usando LangChain y Ollama."""
     if not req.tema:
         raise HTTPException(status_code=400, detail="Tema es requerido")
 
+    session_id = request.headers.get("X-Session-Id", "default")
     contenido = generar_contenido(
         req.tema,
         req.tipo,
@@ -535,6 +554,7 @@ async def generar(req: GenerarRequest):
         paginas=req.paginas,
         extras=req.extras,
         contexto=req.contexto,
+        session_id=session_id,
     )
     informe = {
         "id": str(uuid4()),
@@ -667,8 +687,18 @@ def _infer_context(text: str) -> dict:
     return ctx
 
 
+def _detect_lang_command(text: str) -> str | None:
+    """Devuelve 'es' o 'en' si el texto indica cambiar de idioma."""
+    t = text.lower()
+    if re.search(r"(english|ingl\xe9s)" , t) and re.search(r"(cambi|switch|quiero|change)", t):
+        return "en"
+    if re.search(r"(espa\xf1ol|spanish)", t) and re.search(r"(cambi|switch|quiero|change)", t):
+        return "es"
+    return None
+
+
 @app.post("/conversar")
-async def conversar(req: ConversacionRequest):
+async def conversar(req: ConversacionRequest, request: Request):
     """Procesa mensajes libres usando el modelo de lenguaje."""
     prompt = req.mensaje
     if prompt.startswith("UPDATE:"):
@@ -677,16 +707,28 @@ async def conversar(req: ConversacionRequest):
         return {"respuesta": "actualizado"}
 
     if req.modo == "generar":
+        session_id = request.headers.get("X-Session-Id", "default")
         try:
-            texto = generar_contenido(prompt, "Informe")
+            texto = generar_contenido(prompt, "Informe", session_id=session_id)
         except Exception:
             texto = f"Generando informe: {prompt}"
         print("Mensaje recibido:", prompt)
         print("Respuesta generada:", texto)
         return {"respuesta": texto}
 
+    lang_cmd = _detect_lang_command(prompt)
+    session_id = request.headers.get("X-Session-Id", "default")
+    if lang_cmd:
+        set_language(lang_cmd, session_id)
+        texto_resp = (
+            "Idioma cambiado a Español"
+            if lang_cmd == "es"
+            else "Language switched to English"
+        )
+        return {"respuesta": texto_resp}
+
     try:
-        respuesta = invoke_llm(prompt)
+        respuesta = invoke_llm(prompt, session_id=session_id)
         error = None
     except HTTPException as exc:
         respuesta = ""
@@ -704,6 +746,14 @@ async def conversar(req: ConversacionRequest):
     if error:
         payload["error"] = error
     return payload
+
+
+@app.post("/config/idioma")
+async def cambiar_idioma(req: IdiomaRequest, request: Request):
+    """Actualiza el idioma de la sesi\u00f3n."""
+    session_id = request.headers.get("X-Session-Id", "default")
+    set_language(req.idioma, session_id)
+    return {"ok": True, "idioma": get_language(session_id)}
 
 
 @app.post("/buscar")
