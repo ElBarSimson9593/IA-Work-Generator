@@ -37,6 +37,9 @@ Antes de compilar, asegúrese de disponer de Ollama y Pandoc en el sistema anfit
 ollama pull mixtral          # recomendado
 ollama pull mistral          # alternativa para hardware limitado
 ollama serve &
+# en Windows usa `ollama serve` (o `start "" /B ollama serve`) en su propia consola
+# si aparece el mensaje "Only one usage of each socket address..." quiere decir
+# que otra instancia de `ollama` sigue activa. Mata el proceso anterior y vuelve a intentarlo.
 
 # Backend
 python -m venv venv
