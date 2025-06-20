@@ -68,6 +68,15 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 HIST_PATH = REPO_ROOT / "historial.json"
 CHROMA_PATH = REPO_ROOT / "chroma_db"
 
+# Prompt por defecto que define el proposito del asistente
+DEFAULT_SYSTEM_PROMPT = (
+    "Eres un asistente especializado en la creaci\u00f3n de informes acad\u00e9micos y"
+    " corporativos, presentaciones en PowerPoint, hojas de c\u00e1lculo en Excel"
+    " y reportes ejecutivos. Tu funci\u00f3n es asistir al usuario en la redacci\u00f3n,"
+    " estructuraci\u00f3n y enriquecimiento de contenido profesional, asegurando"
+    " claridad, coherencia y pertinencia seg\u00fan el contexto."
+)
+
 # Cargar configuración global
 CONFIG_PATH = Path(__file__).resolve().parents[1] / "config" / "config.yaml"
 if CONFIG_PATH.exists():
@@ -75,6 +84,8 @@ if CONFIG_PATH.exists():
         CONFIG = yaml.safe_load(fh) or {}
 else:
     CONFIG = {}
+
+SYSTEM_PROMPT = CONFIG.get("system_prompt", DEFAULT_SYSTEM_PROMPT)
 
 # Lenguaje por sesión
 _LANG_STORE: dict[str, str] = {"default": CONFIG.get("language", "es")}
@@ -151,10 +162,12 @@ def detect_language(text: str) -> str:
 def invoke_llm(prompt: str, session_id: str = "default") -> str:
     """Invoca el modelo y limpia la salida respetando el idioma activo."""
     lang = get_language(session_id)
-    prefix = (
-        "Responde en español:\n" if lang == "es" else "Answer in English:\n"
-    )
-    raw = _invoke_llm(prefix + prompt)
+    prefix = "Responde en español:\n" if lang == "es" else "Answer in English:\n"
+    contexto = obtener_contexto_semantico(prompt)
+    full_prompt = SYSTEM_PROMPT + "\n" + prefix + prompt
+    if contexto:
+        full_prompt += "\nBasate en el siguiente contexto:\n" + contexto
+    raw = _invoke_llm(full_prompt)
     return clean_llm_output(raw)
 
 EXPORT_DIR = Path(CONFIG.get("export_dir", "exports"))
@@ -180,6 +193,7 @@ else:
     embedder = _DummyEmbedder()
 client = chromadb.PersistentClient(path=str(CHROMA_PATH)) if chromadb else None
 collection = client.get_or_create_collection("informes") if client else None
+docs_collection = client.get_or_create_collection("documentos") if client else None
 
 
 def cargar_historial() -> list:
@@ -225,6 +239,35 @@ def eliminar_de_chroma(item_id: str) -> None:
         collection.delete(ids=[item_id])
     except Exception:
         pass
+
+
+def agregar_documento(texto: str) -> None:
+    """Almacena un documento en la base vectorial de documentos."""
+    if not docs_collection or not embedder:
+        return
+    doc_id = str(uuid4())
+    emb_raw = embedder.encode(texto)
+    emb = emb_raw.tolist() if hasattr(emb_raw, "tolist") else emb_raw
+    try:
+        docs_collection.add(ids=[doc_id], embeddings=[emb], documents=[texto])
+    except Exception:
+        pass
+
+
+def obtener_contexto_semantico(texto: str, k: int = 2) -> str:
+    """Busca fragmentos relevantes en la base vectorial de documentos."""
+    if not docs_collection or not embedder or not texto:
+        return ""
+    emb_raw = embedder.encode(texto)
+    emb = emb_raw.tolist() if hasattr(emb_raw, "tolist") else emb_raw
+    try:
+        res = docs_collection.query(
+            query_embeddings=[emb], n_results=k, include=["documents"]
+        )
+    except Exception:
+        return ""
+    docs = res.get("documents", [[]])[0]
+    return "\n".join(docs)
 
 
 def sync_chroma() -> None:
@@ -512,6 +555,7 @@ async def cargar_documento(file: UploadFile = File(...)):
         except Exception:
             pass
     texto = unicodedata.normalize("NFC", texto)
+    agregar_documento(texto)
     return {"contenido": texto}
 
 

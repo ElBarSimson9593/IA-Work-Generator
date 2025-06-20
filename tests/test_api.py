@@ -162,4 +162,15 @@ def test_conversar_cambia_idioma(monkeypatch):
     assert "Ingl" in resp.json()["respuesta"] or "English" in resp.json()["respuesta"]
     resp2 = client.post("/conversar", json={"mensaje": "hola"})
     assert resp2.status_code == 200
-    assert resp2.json()["respuesta"].startswith("Answer in English:")
+    assert "Answer in English:" in resp2.json()["respuesta"]
+
+
+def test_rag_document(monkeypatch, tmp_path):
+    monkeypatch.setattr(bm, "_invoke_llm", lambda p: p)
+    file = tmp_path / "rag.txt"
+    file.write_text("dato curioso", encoding="utf-8")
+    with file.open("rb") as fh:
+        client.post("/documento", files={"file": ("rag.txt", fh, "text/plain")})
+    resp = client.post("/conversar", json={"mensaje": "dato curioso"})
+    assert resp.status_code == 200
+    assert "dato curioso" in resp.json()["respuesta"]
