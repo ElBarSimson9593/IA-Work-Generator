@@ -31,6 +31,7 @@ import yaml
 from threading import Lock
 import re
 import shutil
+import unicodedata
 
 
 app = FastAPI(title="Generador de informes IA")
@@ -81,6 +82,29 @@ def _invoke_llm(prompt: str) -> str:
         raise
     except Exception as exc:  # pragma: no cover - runtime connectivity issues
         raise HTTPException(status_code=503, detail="LLM no disponible") from exc
+
+
+def clean_llm_output(text: str) -> str:
+    """Normaliza y filtra la respuesta del modelo."""
+    if not isinstance(text, str):
+        text = str(text)
+    text = unicodedata.normalize("NFC", text)
+    text = text.replace("\u2013", "-").replace("\u2014", "-")
+
+    def _repl(match: re.Match) -> str:
+        inner = match.group(1)
+        if re.fullmatch(r"[A-Za-z0-9 ,.'\"-]+", inner):
+            return ""
+        return match.group(0)
+
+    text = re.sub(r"\(([^()]+)\)", _repl, text)
+    return text.strip()
+
+
+def invoke_llm(prompt: str) -> str:
+    """Invoca el modelo y limpia la salida."""
+    raw = _invoke_llm(prompt)
+    return clean_llm_output(raw)
 
 EXPORT_DIR = Path(CONFIG.get("export_dir", "exports"))
 EXPORT_DIR.mkdir(parents=True, exist_ok=True)
@@ -224,7 +248,7 @@ def generar_pregunta(paso: int, estado: EstadoConversacion) -> str:
         return base
 
     try:
-        return _invoke_llm(prompt).strip()
+        return invoke_llm(prompt)
     except Exception:
         return base
 
@@ -306,7 +330,7 @@ def generar_estructura(
         "Devuelve solo los títulos de las secciones con una breve descripción de cada una."
     )
     try:
-        return _invoke_llm(prompt)
+        return invoke_llm(prompt)
     except OllamaEndpointNotFoundError as exc:
         raise HTTPException(
             status_code=500,
@@ -332,7 +356,7 @@ def generar_contenido(
         f"Consideraciones adicionales: {extras or 'ninguna'}."
     )
     try:
-        return _invoke_llm(prompt)
+        return invoke_llm(prompt)
     except OllamaEndpointNotFoundError as exc:
         raise HTTPException(
             status_code=500,
@@ -409,7 +433,7 @@ async def generar_informe(req: GenerarInformeRequest):
                 await asyncio.sleep(0.02)
         yield "\n" + json.dumps({"finalizado": True})
 
-    return StreamingResponse(gen(), media_type="text/plain")
+    return StreamingResponse(gen(), media_type="text/plain; charset=utf-8")
 
 @app.post("/generar")
 async def generar(req: GenerarRequest):
@@ -575,7 +599,7 @@ async def conversar(req: ConversacionRequest):
         return {"respuesta": texto}
 
     try:
-        respuesta = _invoke_llm(prompt)
+        respuesta = invoke_llm(prompt)
         error = None
     except HTTPException as exc:
         respuesta = ""
