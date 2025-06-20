@@ -560,8 +560,9 @@ async def conversar(req: ConversacionRequest):
         print("Respuesta generada:", texto)
         return {"respuesta": texto}
 
-    respuesta = ""
-    if llm:
+    if llm is None:
+        respuesta = "[LLM no disponible]"
+    else:
         try:
             respuesta = _invoke_llm(prompt)
         except Exception:
