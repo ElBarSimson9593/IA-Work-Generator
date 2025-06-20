@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File
 from fastapi.responses import FileResponse, StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
@@ -31,6 +31,18 @@ try:
     from langdetect import detect
 except Exception:  # pragma: no cover - optional dependency
     detect = None
+try:
+    import pdfplumber
+except Exception:  # pragma: no cover - optional dependency
+    pdfplumber = None
+try:
+    import fitz  # PyMuPDF
+except Exception:  # pragma: no cover - optional dependency
+    fitz = None
+try:
+    from docx import Document
+except Exception:  # pragma: no cover - optional dependency
+    Document = None
 import yaml
 from threading import Lock
 import re
@@ -136,6 +148,8 @@ def invoke_llm(prompt: str) -> str:
 
 EXPORT_DIR = Path(CONFIG.get("export_dir", "exports"))
 EXPORT_DIR.mkdir(parents=True, exist_ok=True)
+UPLOAD_DIR = REPO_ROOT / "backend" / "uploads"
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 # Inicializar modelo de embedding y base vectorial persistente
 if SentenceTransformer:
@@ -373,6 +387,7 @@ def generar_contenido(
     estilo: str | None = None,
     paginas: int | None = None,
     extras: str | None = None,
+    contexto: str | None = None,
 ) -> str:
     """Genera un informe usando LangChain + Ollama."""
     prompt = (
@@ -383,6 +398,8 @@ def generar_contenido(
         "Incluye introducci\u00f3n, desarrollo argumental y conclusiones. "
         f"Consideraciones adicionales: {extras or 'ninguna'}."
     )
+    if contexto:
+        prompt += "\nUtiliza la siguiente informaci\u00f3n como referencia:\n" + contexto
     try:
         return invoke_llm(prompt)
     except OllamaEndpointNotFoundError as exc:
@@ -417,6 +434,27 @@ def exportar_a_archivo(contenido: str, formato: str) -> str:
     os.remove(md_path)
     return str(out_path)
 
+
+def _leer_documento(path: Path, ext: str) -> str:
+    """Extrae texto de un archivo según su extensión."""
+    if ext == ".pdf":
+        if pdfplumber:
+            with pdfplumber.open(path) as pdf:
+                return "\n".join(page.extract_text() or "" for page in pdf.pages)
+        if fitz:
+            doc = fitz.open(str(path))
+            return "\n".join(page.get_text() for page in doc)
+        raise HTTPException(status_code=500, detail="Soporte PDF no disponible")
+    if ext == ".docx":
+        if not Document:
+            raise HTTPException(status_code=500, detail="Soporte DOCX no disponible")
+        doc = Document(str(path))
+        return "\n".join(p.text for p in doc.paragraphs)
+    if ext == ".txt":
+        with path.open("r", encoding="utf-8") as fh:
+            return fh.read()
+    raise HTTPException(status_code=400, detail="Formato no soportado")
+
 class GenerarRequest(BaseModel):
     tema: str
     tipo: str
@@ -424,6 +462,7 @@ class GenerarRequest(BaseModel):
     estilo: str | None = None
     paginas: int | None = None
     extras: str | None = None
+    contexto: str | None = None
 
 
 class GenerarInformeRequest(BaseModel):
@@ -437,6 +476,25 @@ class GenerarInformeRequest(BaseModel):
 class ExportarRequest(BaseModel):
     contenido: str
     formato: str
+
+
+@app.post("/documento")
+async def cargar_documento(file: UploadFile = File(...)):
+    """Sube un documento y devuelve su texto extraído."""
+    ext = Path(file.filename).suffix.lower()
+    tmp_path = UPLOAD_DIR / f"{uuid4()}{ext}"
+    with tmp_path.open("wb") as fh:
+        shutil.copyfileobj(file.file, fh)
+    file.file.close()
+    try:
+        texto = _leer_documento(tmp_path, ext)
+    finally:
+        try:
+            tmp_path.unlink()
+        except Exception:
+            pass
+    texto = unicodedata.normalize("NFC", texto)
+    return {"contenido": texto}
 
 
 @app.post("/generar_informe")
@@ -476,6 +534,7 @@ async def generar(req: GenerarRequest):
         estilo=req.estilo,
         paginas=req.paginas,
         extras=req.extras,
+        contexto=req.contexto,
     )
     informe = {
         "id": str(uuid4()),
