@@ -174,6 +174,8 @@ EXPORT_DIR = Path(CONFIG.get("export_dir", "exports"))
 EXPORT_DIR.mkdir(parents=True, exist_ok=True)
 UPLOAD_DIR = REPO_ROOT / "backend" / "uploads"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+TMP_DIR = REPO_ROOT / "backend" / "tmp"
+TMP_DIR.mkdir(parents=True, exist_ok=True)
 
 # Inicializar modelo de embedding y base vectorial persistente
 if SentenceTransformer:
@@ -516,6 +518,36 @@ def _leer_documento(path: Path, ext: str) -> str:
             return fh.read()
     raise HTTPException(status_code=400, detail="Formato no soportado")
 
+
+def crear_docx(secciones: dict) -> str:
+    """Construye un archivo DOCX a partir de secciones."""
+    if not Document:
+        raise HTTPException(status_code=500, detail="Soporte DOCX no disponible")
+
+    doc = Document()
+    titulo = secciones.get("titulo", "Informe")
+    doc.add_heading(titulo, level=1)
+
+    intro = secciones.get("introduccion")
+    if intro:
+        doc.add_heading("Introducción", level=2)
+        doc.add_paragraph(intro)
+
+    desarrollo = secciones.get("desarrollo")
+    if desarrollo:
+        doc.add_heading("Desarrollo", level=2)
+        for bloque in desarrollo.split("\n\n"):
+            doc.add_paragraph(bloque)
+
+    concl = secciones.get("conclusion")
+    if concl:
+        doc.add_heading("Conclusión", level=2)
+        doc.add_paragraph(concl)
+
+    path = TMP_DIR / f"{uuid4()}.docx"
+    doc.save(path)
+    return str(path)
+
 class GenerarRequest(BaseModel):
     tema: str
     tipo: str
@@ -537,6 +569,13 @@ class GenerarInformeRequest(BaseModel):
 class ExportarRequest(BaseModel):
     contenido: str
     formato: str
+
+
+class GenerarDocxRequest(BaseModel):
+    tema: str
+    objetivo: str | None = None
+    audiencia: str | None = None
+    idioma: str | None = None
 
 
 @app.post("/documento")
@@ -616,6 +655,51 @@ async def generar(req: GenerarRequest, request: Request):
     guardar_historial(historial)
     agregar_a_chroma(informe)
     return {"id": informe["id"], "contenido": contenido}
+
+
+@app.post("/generar-docx")
+async def generar_docx(
+    req: GenerarDocxRequest, request: Request, background_tasks: BackgroundTasks
+):
+    """Genera un documento DOCX listo para descargar."""
+    session_id = request.headers.get("X-Session-Id", "default")
+
+    sec_titles = invoke_llm(
+        f"Proporciona un título breve en {req.idioma or 'español'} para un informe sobre {req.tema}.",
+        session_id=session_id,
+    )
+    sec_intro = invoke_llm(
+        f"Redacta una introducción en {req.idioma or 'español'} sobre {req.tema} dirigida a {req.audiencia or 'público general'}.",
+        session_id=session_id,
+    )
+    sec_dev = invoke_llm(
+        f"Desarrolla el tema {req.tema} en {req.idioma or 'español'} alcanzando el objetivo {req.objetivo or 'informativo'}.",
+        session_id=session_id,
+    )
+    sec_conc = invoke_llm(
+        f"Concluye el informe sobre {req.tema} en {req.idioma or 'español'}.",
+        session_id=session_id,
+    )
+
+    path = crear_docx(
+        {
+            "titulo": sec_titles,
+            "introduccion": sec_intro,
+            "desarrollo": sec_dev,
+            "conclusion": sec_conc,
+        }
+    )
+
+    headers = {
+        "Content-Disposition": "attachment; filename='informe.docx'"
+    }
+    background_tasks.add_task(os.remove, path)
+    return StreamingResponse(
+        open(path, "rb"),
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers=headers,
+        background=background_tasks,
+    )
 
 
 @app.post("/exportar")
