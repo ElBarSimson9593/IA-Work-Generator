@@ -48,6 +48,7 @@ from threading import Lock
 import re
 import shutil
 import unicodedata
+from .document_generator import crear_docx
 
 
 class Utf8JSONResponse(JSONResponse):
@@ -519,34 +520,6 @@ def _leer_documento(path: Path, ext: str) -> str:
     raise HTTPException(status_code=400, detail="Formato no soportado")
 
 
-def crear_docx(secciones: dict) -> str:
-    """Construye un archivo DOCX a partir de secciones."""
-    if not Document:
-        raise HTTPException(status_code=500, detail="Soporte DOCX no disponible")
-
-    doc = Document()
-    titulo = secciones.get("titulo", "Informe")
-    doc.add_heading(titulo, level=1)
-
-    intro = secciones.get("introduccion")
-    if intro:
-        doc.add_heading("Introducción", level=2)
-        doc.add_paragraph(intro)
-
-    desarrollo = secciones.get("desarrollo")
-    if desarrollo:
-        doc.add_heading("Desarrollo", level=2)
-        for bloque in desarrollo.split("\n\n"):
-            doc.add_paragraph(bloque)
-
-    concl = secciones.get("conclusion")
-    if concl:
-        doc.add_heading("Conclusión", level=2)
-        doc.add_paragraph(concl)
-
-    path = TMP_DIR / f"{uuid4()}.docx"
-    doc.save(path)
-    return str(path)
 
 class GenerarRequest(BaseModel):
     tema: str
@@ -576,6 +549,43 @@ class GenerarDocxRequest(BaseModel):
     objetivo: str | None = None
     audiencia: str | None = None
     idioma: str | None = None
+
+
+def generar_docx_tema(
+    tema: str,
+    objetivo: str | None = None,
+    audiencia: str | None = None,
+    idioma: str | None = None,
+    session_id: str = "default",
+) -> str:
+    """Genera secciones y construye un DOCX temporal."""
+
+    sec_titles = invoke_llm(
+        f"Proporciona un título breve en {idioma or 'español'} para un informe sobre {tema}.",
+        session_id=session_id,
+    )
+    sec_intro = invoke_llm(
+        f"Redacta una introducción en {idioma or 'español'} sobre {tema} dirigida a {audiencia or 'público general'}.",
+        session_id=session_id,
+    )
+    sec_dev = invoke_llm(
+        f"Desarrolla el tema {tema} en {idioma or 'español'} alcanzando el objetivo {objetivo or 'informativo'}.",
+        session_id=session_id,
+    )
+    sec_conc = invoke_llm(
+        f"Concluye el informe sobre {tema} en {idioma or 'español'}.",
+        session_id=session_id,
+    )
+
+    return crear_docx(
+        {
+            "titulo": sec_titles,
+            "introduccion": sec_intro,
+            "desarrollo": sec_dev,
+            "conclusion": sec_conc,
+        },
+        TMP_DIR,
+    )
 
 
 @app.post("/documento")
@@ -664,30 +674,12 @@ async def generar_docx(
     """Genera un documento DOCX listo para descargar."""
     session_id = request.headers.get("X-Session-Id", "default")
 
-    sec_titles = invoke_llm(
-        f"Proporciona un título breve en {req.idioma or 'español'} para un informe sobre {req.tema}.",
+    path = generar_docx_tema(
+        req.tema,
+        objetivo=req.objetivo,
+        audiencia=req.audiencia,
+        idioma=req.idioma,
         session_id=session_id,
-    )
-    sec_intro = invoke_llm(
-        f"Redacta una introducción en {req.idioma or 'español'} sobre {req.tema} dirigida a {req.audiencia or 'público general'}.",
-        session_id=session_id,
-    )
-    sec_dev = invoke_llm(
-        f"Desarrolla el tema {req.tema} en {req.idioma or 'español'} alcanzando el objetivo {req.objetivo or 'informativo'}.",
-        session_id=session_id,
-    )
-    sec_conc = invoke_llm(
-        f"Concluye el informe sobre {req.tema} en {req.idioma or 'español'}.",
-        session_id=session_id,
-    )
-
-    path = crear_docx(
-        {
-            "titulo": sec_titles,
-            "introduccion": sec_intro,
-            "desarrollo": sec_dev,
-            "conclusion": sec_conc,
-        }
     )
 
     headers = {
@@ -815,6 +807,17 @@ def _infer_context(text: str) -> dict:
     return ctx
 
 
+def _detect_word_request(text: str) -> str | None:
+    """Extrae el tema si el mensaje solicita un documento Word."""
+    t = text.lower()
+    if not any(k in t for k in ["word", "docx", "documento", "descargar"]):
+        return None
+    m = re.search(r"sobre ([^.\n]+)", text, re.I)
+    if m:
+        return m.group(1).strip()
+    return text.strip()
+
+
 def _detect_lang_command(text: str) -> str | None:
     """Devuelve 'es' o 'en' si el texto indica cambiar de idioma."""
     t = text.lower()
@@ -844,8 +847,21 @@ async def conversar(req: ConversacionRequest, request: Request):
         print("Respuesta generada:", texto)
         return {"respuesta": texto}
 
-    lang_cmd = _detect_lang_command(prompt)
     session_id = request.headers.get("X-Session-Id", "default")
+    tema_docx = _detect_word_request(prompt)
+    if tema_docx:
+        path = generar_docx_tema(tema_docx, session_id=session_id)
+        headers = {"Content-Disposition": "attachment; filename='informe.docx'"}
+        background_tasks = BackgroundTasks()
+        background_tasks.add_task(os.remove, path)
+        return StreamingResponse(
+            open(path, "rb"),
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            headers=headers,
+            background=background_tasks,
+        )
+
+    lang_cmd = _detect_lang_command(prompt)
     if lang_cmd:
         set_language(lang_cmd, session_id)
         texto_resp = (
