@@ -11,3 +11,6 @@ sentence-transformers
 httpx
 langchain_ollama
 langdetect
+pdfplumber
+python-docx
+PyMuPDF

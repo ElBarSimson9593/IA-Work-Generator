@@ -130,3 +130,20 @@ def test_conversar_sin_llm(monkeypatch):
     assert resp.status_code == 200
     data = resp.json()
     assert data["error"] == "LLM no disponible"
+
+
+def test_documento_txt(tmp_path):
+    file = tmp_path / "prueba.txt"
+    file.write_text("hola", encoding="utf-8")
+    with file.open("rb") as fh:
+        resp = client.post("/documento", files={"file": ("prueba.txt", fh, "text/plain")})
+    assert resp.status_code == 200
+    assert resp.json()["contenido"] == "hola"
+
+
+def test_documento_invalido(tmp_path):
+    file = tmp_path / "bad.bin"
+    file.write_bytes(b"123")
+    with file.open("rb") as fh:
+        resp = client.post("/documento", files={"file": ("bad.bin", fh, "application/octet-stream")})
+    assert resp.status_code == 400
