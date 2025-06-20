@@ -47,6 +47,7 @@ python backend/main.py
 
 # Frontend
 cd frontend
+cp .env.example .env  # opcional: ajusta VITE_API_URL si es necesario
 npm install
 npm run dev
 ```

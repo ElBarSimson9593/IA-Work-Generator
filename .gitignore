@@ -8,5 +8,6 @@ frontend/node_modules/
 # Build artifacts
 *.pyc
 frontend/dist/
+frontend/.env
 chroma_db/
 tests/tmp_hist.json
