@@ -35,7 +35,10 @@ export default function ChatInterface() {
           body: JSON.stringify({ mensaje: text }),
         }
       );
-      const reply = data.respuesta || data.reply || "";
+      let reply = data.respuesta || data.reply || "";
+      if (!reply && (data as any).error) {
+        reply = `Error: ${(data as any).error}`;
+      }
       if (!reply) {
         console.warn("Respuesta vacía o malformada", data);
       }

@@ -56,6 +56,9 @@ export default function MainInterface() {
         reply = raw.trim();
       }
       console.log("Respuesta del backend:", data || raw);
+      if (!reply && data?.error) {
+        reply = `Error: ${data.error}`;
+      }
       if (!reply) {
         console.warn("Respuesta vacía o malformada", data || raw);
         reply = "Sin respuesta generada.";
